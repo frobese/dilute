@@ -21,7 +21,7 @@ defmodule Dilute.Resolver do
 
         query =
           unquote(mod).__object__(:schema, resolution.type)
-          |> Query.gen_query(resolution)
+          |> Query.generate_query(resolution)
 
         result =
           case resolution do

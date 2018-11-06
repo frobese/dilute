@@ -1,4 +1,7 @@
 defmodule Dilute.Resolution do
+  @moduledoc """
+  Query-esque representation for `Absinthe.Resolution`s.
+  """
   require Logger
   alias Absinthe.Resolution
   alias Absinthe.Blueprint.Document
@@ -21,6 +24,9 @@ defmodule Dilute.Resolution do
     cardinality: nil
   ]
 
+  @doc """
+  Derives the `Dilute.Resolution` for the given `Absinthe.Resolution`
+  """
   @spec derive_resolution(nil, %Resolution{}) :: %__MODULE__{}
   @spec derive_resolution(%__MODULE__{} | nil, %Document.Field{}) :: %__MODULE__{}
   def derive_resolution(acc \\ nil, select)

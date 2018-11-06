@@ -1,6 +1,10 @@
 defmodule Dilute do
   @moduledoc """
-  Absinthe objects can be defined inside your `Types` module:
+  `Ecto.Schema` are very similar to `Absinthe.Type.Object` definitions and are required to be kept in sync.
+  Dilute is able to derive `Absinthe.Type.Object` on their relations based on `Ecto.Schema` definitions.
+
+  ## Types
+  Absinthe objects placed inside your `Types` module:
 
       defmodule MyAppWeb.Schema.Types do
         use Absinthe.Schema.Notation
@@ -11,24 +15,39 @@ defmodule Dilute do
         Dilute.object(Comment)
       end
 
-  Once the types are defined the resolver can be defined as:
+  ## Resolution
+  The resolver can be defined as:
 
       defmodule MyAppWeb.Resolver do
-        user Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: MyApp.Repo
+        use Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: MyApp.Repo
       end
 
-  Querys can either be defined using the `resolve/3` function or user the `query_fields/2` macro
+  Queries can either be defined using the `resolve/3` function or the `query_fields/2` macro
 
-    query do
-      @desc "Get all Posts"
-      field :posts, list_of(:post) do
-        resolve(&MyAppWeb.Resolver.resolve/3)
+
+      defmodule MyAppWeb.Schema do
+        use Absinthe.Schema
+        import_types(MyAppWeb.Schema.Types)
+
+        alias BlogWeb.Resolvers
+
+        query do
+          @desc "Get one Post"
+          field :post, :post do
+              resolve(&MyAppWeb.Resolver.resolve/3)
+          end
+
+          @desc "Get all Posts"
+          field :posts, list_of(:post) do
+            resolve(&MyAppWeb.Resolver.resolve/3)
+          end
+
+          query do
+            MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
+          end
+        end
       end
 
-      query do
-        MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
-      end
-    end
   """
   import Absinthe.Schema.Notation
   require Dilute.Query
@@ -163,6 +182,7 @@ defmodule Dilute do
     |> exclude(t)
   end
 
+  @doc false
   def args(fields) do
     for {field, type} <- fields do
       quote do
@@ -171,7 +191,7 @@ defmodule Dilute do
     end
   end
 
-  defp fields(module, exclude \\ []) do
+  defp fields(module, exclude) do
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
