@@ -25,11 +25,11 @@ defmodule Dilute.Resolver do
 
         result =
           case resolution do
-            %Resolution{cardinality: :one} ->
+            %Resolution{cardinality: :many} ->
               query
               |> unquote(repo).all()
 
-            %Resolution{cardinality: :many} ->
+            %Resolution{cardinality: :one} ->
               query
               |> unquote(repo).one()
           end
@@ -37,7 +37,7 @@ defmodule Dilute.Resolver do
         {:ok, result}
       rescue
         Ecto.MultipleResultsError ->
-          {:error, "To many results returned"}
+          {:error, "Too many results returned"}
       end
     end
   end
