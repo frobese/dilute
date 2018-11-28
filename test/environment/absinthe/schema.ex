@@ -3,6 +3,7 @@ defmodule DiluteTest.Environment.Absinthe.Schema do
   alias DiluteTest.Environment.Absinthe.{Types, Resolver}
   require Types
 
+  import_types(Absinthe.Type.Custom)
   import_types(Types)
 
   query do

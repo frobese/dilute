@@ -153,8 +153,6 @@ defmodule Dilute do
       end
 
       object unquote(schema) do
-        import_types(Absinthe.Type.Custom)
-
         unquote(
           # quote do
           #   unquote(block)
