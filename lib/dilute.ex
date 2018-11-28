@@ -84,9 +84,10 @@ defmodule Dilute do
 
       Dilute.object(User)
   """
-  defmacro ecto_object(module, associations \\ true, do: block) do
+  @default_opts [associations: true, exclude: []]
+  defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
-    # opts = Keyword.merge(@defaults, opts)
+    opts = Keyword.merge(@default_opts, opts)
 
     ecto_check(module)
 
@@ -102,7 +103,7 @@ defmodule Dilute do
     # |> IO.inspect(label: "exclude", limit: 30000)
 
     # fields = fields(module, Keyword.get(exclude, module, []))
-    fields = fields(module, [])
+    fields = fields(module, opts[:exclude])
 
     assocs =
       module.__schema__(:associations)
@@ -120,13 +121,12 @@ defmodule Dilute do
 
     quote do
       def __object__(:schema, unquote(schema)), do: unquote(module)
+      # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       defmacro query_fields(unquote(schema), resolver) do
-        exclude = Keyword.get(@exclude || [], unquote(module), [])
+        exclude = unquote(opts[:exclude])
 
-        fields =
-          unquote(fields)
-          |> Enum.reject(fn {field, _type} -> field in exclude end)
+        fields = unquote(fields)
 
         schema = unquote(schema)
         schema_plural = unquote(schema_plural)
@@ -154,9 +154,6 @@ defmodule Dilute do
 
       object unquote(schema) do
         unquote(
-          # quote do
-          #   unquote(block)
-          # end
           [
             quote do
               Macro.expand_once(unquote(block), unquote(env))
@@ -167,7 +164,7 @@ defmodule Dilute do
                 end
               end
           ] ++
-            if associations do
+            if opts[:associations] do
               for {field, assoc, schema, fields} <- assocs do
                 case assoc do
                   %Ecto.Association.BelongsTo{} ->
