@@ -65,7 +65,7 @@ defmodule Dilute do
 
       Dilute.object(User)
   """
-  defmacro object(module) do
+  defmacro ecto_object(module, associations \\ true, do: block) do
     module = Macro.expand(module, __CALLER__)
     # opts = Keyword.merge(@defaults, opts)
 
@@ -80,33 +80,30 @@ defmodule Dilute do
         :ok
     end
 
-    schema =
-      module.__schema__(:source)
-      |> String.downcase()
-      |> String.to_atom()
+    env = __CALLER__
 
-    schema_plural =
-      module.__schema__(:source)
-      |> String.downcase()
-      |> (fn schema -> schema <> "s" end).()
-      |> String.to_atom()
+    # module.__schema__(:source)
+    {schema, schema_plural} = schema_tuple(module)
 
-    excludes = Module.get_attribute(__CALLER__.module, :excludes) || []
+    # # Module.register_attribute(__CALLER__.module, :exclude, accumulate: true)
+    # exclude = Module.get_attribute(__CALLER__.module, :exclude) || []
 
-    fields = fields(module, Keyword.get(excludes, module, []))
+    # exclude
+    # |> IO.inspect(label: "exclude", limit: 30000)
+
+    # fields = fields(module, Keyword.get(exclude, module, []))
+    fields = fields(module, [])
 
     assocs =
       module.__schema__(:associations)
-      |> exclude(excludes)
+      # |> exclude(exclude)
       |> Enum.map(fn field ->
         assoc = %{related: mod} = module.__schema__(:association, field)
 
-        schema =
-          mod.__schema__(:source)
-          |> String.downcase()
-          |> String.to_atom()
+        {schema, _schema_plural} = schema_tuple(mod)
 
-        fields = fields(mod, Keyword.get(excludes, mod, []))
+        # fields = fields(mod, Keyword.get(exclude, mod, []))
+        fields = fields(mod, [])
 
         {field, assoc, schema, fields}
       end)
@@ -115,7 +112,12 @@ defmodule Dilute do
       def __object__(:schema, unquote(schema)), do: unquote(module)
 
       defmacro query_fields(unquote(schema), resolver) do
-        fields = unquote(fields)
+        exclude = Keyword.get(@exclude, unquote(module), [])
+
+        fields =
+          unquote(fields)
+          |> Enum.reject(fn {field, _type} -> field in exclude end)
+
         schema = unquote(schema)
         schema_plural = unquote(schema_plural)
 
@@ -141,12 +143,23 @@ defmodule Dilute do
       end
 
       object unquote(schema) do
+        import_types(Absinthe.Type.Custom)
+
         unquote(
-          for {field, type} <- fields do
+          # quote do
+          #   unquote(block)
+          # end
+          [
+            quote do
+              Macro.expand_once(unquote(block), unquote(env))
+            end
+            | for {field, type} <- fields do
             quote do
               field(unquote(field), unquote(type))
             end
-          end ++
+              end
+          ] ++
+            if associations do
             for {field, assoc, schema, fields} <- assocs do
               case assoc do
                 %Ecto.Association.BelongsTo{} ->
@@ -167,9 +180,24 @@ defmodule Dilute do
                   raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
               end
             end
+            else
+              []
+              # end
+            end
         )
       end
     end
+  end
+
+  defp schema_tuple(module) when is_atom(module) do
+    # {schema, schema_plural} =
+    module
+    |> Module.split()
+    |> List.last()
+    |> String.downcase()
+    |> (fn schema -> [schema, schema <> "s"] end).()
+    |> Enum.map(&String.to_atom/1)
+    |> List.to_tuple()
   end
 
   defp exclude(lst, []) do
@@ -195,7 +223,8 @@ defmodule Dilute do
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
-      {field, module.__schema__(:type, field)}
+      type = Dilute.Mapper.map(module.__schema__(:type, field))
+      {field, type}
     end)
   end
 end

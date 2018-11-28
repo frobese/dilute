@@ -4,7 +4,7 @@ defmodule Dilute.MixProject do
   def project do
     [
       app: :dilute,
-      version: "0.1.2",
+      version: "0.2.0-dev",
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       description: description(),
