@@ -1,121 +1,119 @@
 defmodule Dilute do
   @moduledoc """
   `Ecto.Schema` are very similar to `Absinthe.Type.Object` definitions and are required to be kept in sync.
-  Dilute is able to derive `Absinthe.Type.Object` on their relations based on `Ecto.Schema` definitions.
+  Dilute is able to derive Absinthe objects and their relations based on `Ecto.Schema` definitions and offers the ability to translate query resolutions into efficient SQL statements.
 
   ## Types
   Absinthe objects placed inside your `Types` module:
 
       defmodule MyAppWeb.Schema.Types do
         use Absinthe.Schema.Notation
-        require Dilute
+        import Dilute
         alias MyApp.Blog.{Post, Comment}
 
-        Dilute.object(Post)
-        Dilute.object(Comment)
+        ecto_object Post do
+        end
+
+        ecto_object Comment do
+        end
       end
 
   ## Resolution
-  The resolver can be defined as:
+  The resolver can be defined with:
 
       defmodule MyAppWeb.Resolver do
         use Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: MyApp.Repo
       end
 
-  Queries can either be defined using the `resolve/3` function or the `query_fields/2` macro
-
+  Queries can either be defined using the `resolve/3` function ...
 
       defmodule MyAppWeb.Schema do
         use Absinthe.Schema
-        import_types(MyAppWeb.Schema.Types)
-
-        alias BlogWeb.Resolvers
+        alias MyAppWeb.{Resolver, Schema}
+        import_types(Schema.Types)
 
         query do
           @desc "Get one Post"
           field :post, :post do
-              resolve(&MyAppWeb.Resolver.resolve/3)
-          end
-
-          @desc "Get all Posts"
-          field :posts, list_of(:post) do
-            resolve(&MyAppWeb.Resolver.resolve/3)
-          end
-
-          query do
-            MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
+            resolve(&Resolver.resolve/3)
           end
         end
       end
 
+  ... or the `query_fields/2` macro.
+
+      defmodule MyAppWeb.Schema do
+        use Absinthe.Schema
+        alias MyAppWeb.{Resolver, Schema}
+        import_types(Schema.Types)
+
+        query do
+          MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
+        end
+      end
+
   """
-  import Absinthe.Schema.Notation
-  require Dilute.Query
 
   @doc """
   Defines an Absinthe object based on the ecto schema of the given module.
 
-  Fields can be excluded by including the respective field in the `@exclude` attribute:
+  Settings the `:associations` option to `false` will omit the associations in the definition.
+  Fields can be excluded using the `:exclude` option.
 
-      @exclude [
-        # ...
-        {User, [:email, :forename]}
-        # ...
-      ]
+      ecto_object Post, exclude: :id do
+      end
 
-      Dilute.object(User)
+  Additionally the do block will override any field definitions.
+
+      ecto_object Post do
+        field(:rating, :float)
+      end
   """
-  defmacro object(module) do
+  @default_opts [associations: true, exclude: []]
+  defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
-    # opts = Keyword.merge(@defaults, opts)
 
-    cond do
-      not Code.ensure_compiled?(module) ->
-        raise "referenced module #{inspect(module)} could not be complied/loaded"
+    opts =
+      Keyword.merge(@default_opts, opts)
+      |> update_in([:exclude], &List.wrap/1)
 
-      not function_exported?(module, :__schema__, 2) ->
-        raise "referenced module #{inspect(module)} is not an Ecto schema"
+    ecto_check(module)
 
-      true ->
-        :ok
-    end
+    {schema, schema_plural} = schema_tuple(module)
 
-    schema =
-      module.__schema__(:source)
-      |> String.downcase()
-      |> String.to_atom()
-
-    schema_plural =
-      module.__schema__(:source)
-      |> String.downcase()
-      |> (fn schema -> schema <> "s" end).()
-      |> String.to_atom()
-
-    excludes = Module.get_attribute(__CALLER__.module, :excludes) || []
-
-    fields = fields(module, Keyword.get(excludes, module, []))
+    fields = fields(module, opts[:exclude])
 
     assocs =
       module.__schema__(:associations)
-      |> exclude(excludes)
+      |> exclude(opts[:exclude])
       |> Enum.map(fn field ->
         assoc = %{related: mod} = module.__schema__(:association, field)
 
-        schema =
-          mod.__schema__(:source)
-          |> String.downcase()
-          |> String.to_atom()
+        {schema, _schema_plural} = schema_tuple(mod)
 
-        fields = fields(mod, Keyword.get(excludes, mod, []))
+        fields = fields(mod, [])
 
         {field, assoc, schema, fields}
       end)
 
+    joins =
+      assocs
+      |> Enum.reduce([], fn {field, assoc, _, _}, acc ->
+        case assoc do
+          %Ecto.Association.BelongsTo{} -> [field | acc]
+          %Ecto.Association.Has{} -> [field | acc]
+          _ -> acc
+        end
+      end)
+
     quote do
       def __object__(:schema, unquote(schema)), do: unquote(module)
+      def __object__(:joins, unquote(schema)), do: unquote(joins)
+      # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       defmacro query_fields(unquote(schema), resolver) do
         fields = unquote(fields)
+
         schema = unquote(schema)
         schema_plural = unquote(schema_plural)
 
@@ -142,33 +140,66 @@ defmodule Dilute do
 
       object unquote(schema) do
         unquote(
-          for {field, type} <- fields do
+          [
             quote do
-              field(unquote(field), unquote(type))
+              Macro.expand_once(unquote(block), unquote(__CALLER__))
             end
-          end ++
-            for {field, assoc, schema, fields} <- assocs do
-              case assoc do
-                %Ecto.Association.BelongsTo{} ->
-                  quote do
-                    field(unquote(field), unquote(schema)) do
-                      unquote(Dilute.args(fields))
-                    end
-                  end
-
-                %Ecto.Association.Has{} ->
-                  quote do
-                    field(unquote(field), list_of(unquote(schema))) do
-                      unquote(Dilute.args(fields))
-                    end
-                  end
-
-                _ ->
-                  raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+            | for {field, type} <- fields do
+                quote do
+                  field(unquote(field), unquote(type))
+                end
               end
+          ] ++
+            if opts[:associations] do
+              for {field, assoc, schema, fields} <- assocs do
+                case assoc do
+                  %Ecto.Association.BelongsTo{} ->
+                    quote do
+                      field(unquote(field), unquote(schema)) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  %Ecto.Association.Has{} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema))) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  _ ->
+                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+                end
+              end
+            else
+              []
             end
         )
       end
+    end
+  end
+
+  @spec schema_tuple(module()) :: {singular :: atom(), plural :: atom()}
+  defp schema_tuple(module) when is_atom(module) do
+    module
+    |> Module.split()
+    |> List.last()
+    |> Macro.underscore()
+    |> (fn schema -> [schema, schema <> "s"] end).()
+    |> Enum.map(&String.to_atom/1)
+    |> List.to_tuple()
+  end
+
+  defp ecto_check(module) do
+    cond do
+      not Code.ensure_compiled?(module) ->
+        raise "referenced module #{inspect(module)} could not be complied/loaded"
+
+      not function_exported?(module, :__schema__, 2) ->
+        raise "referenced module #{inspect(module)} is not an Ecto schema"
+
+      true ->
+        :ok
     end
   end
 
@@ -195,7 +226,8 @@ defmodule Dilute do
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
-      {field, module.__schema__(:type, field)}
+      type = Dilute.Mapper.map(module.__schema__(:type, field))
+      {field, type}
     end)
   end
 end
