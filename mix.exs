@@ -11,9 +11,14 @@ defmodule Dilute.MixProject do
       package: package(),
       deps: deps(),
       name: "Dilute",
-      docs: docs()
+      docs: docs(),
+      elixirc_paths: elixirc_paths(Mix.env())
     ]
   end
+
+  def elixirc_paths(:test), do: ["test/environment" | elixirc_paths(nil)]
+
+  def elixirc_paths(_), do: ["lib"]
 
   # Run "mix help compile.app" to learn about applications.
   def application do

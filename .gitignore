@@ -21,5 +21,6 @@ erl_crash.dump
 
 # Ignore package tarball (built via "mix hex.build").
 dilute-*.tar
+*.secrets.exs
 
 .elixir_ls

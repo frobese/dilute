@@ -29,6 +29,17 @@ defmodule Dilute do
         use Absinthe.Schema
         import_types(MyAppWeb.Schema.Types)
 
+        query do
+          @desc "Get one Post"
+          field :post, :post do
+              resolve(&MyAppWeb.Resolver.resolve/3)
+          end
+
+
+      defmodule MyAppWeb.Schema do
+        use Absinthe.Schema
+        import_types(MyAppWeb.Schema.Types)
+
         alias BlogWeb.Resolvers
 
         query do
@@ -52,6 +63,14 @@ defmodule Dilute do
   import Absinthe.Schema.Notation
   require Dilute.Query
 
+  defmacro __using__(_) do
+    IO.puts("Register exclude for caller")
+
+    quote do
+      Module.register_attribute(__MODULE__, :exclude, accumulate: false, persist: true)
+    end
+  end
+
   @doc """
   Defines an Absinthe object based on the ecto schema of the given module.
 
@@ -69,16 +88,7 @@ defmodule Dilute do
     module = Macro.expand(module, __CALLER__)
     # opts = Keyword.merge(@defaults, opts)
 
-    cond do
-      not Code.ensure_compiled?(module) ->
-        raise "referenced module #{inspect(module)} could not be complied/loaded"
-
-      not function_exported?(module, :__schema__, 2) ->
-        raise "referenced module #{inspect(module)} is not an Ecto schema"
-
-      true ->
-        :ok
-    end
+    ecto_check(module)
 
     env = __CALLER__
 
@@ -112,7 +122,7 @@ defmodule Dilute do
       def __object__(:schema, unquote(schema)), do: unquote(module)
 
       defmacro query_fields(unquote(schema), resolver) do
-        exclude = Keyword.get(@exclude, unquote(module), [])
+        exclude = Keyword.get(@exclude || [], unquote(module), [])
 
         fields =
           unquote(fields)
@@ -154,35 +164,34 @@ defmodule Dilute do
               Macro.expand_once(unquote(block), unquote(env))
             end
             | for {field, type} <- fields do
-            quote do
-              field(unquote(field), unquote(type))
-            end
+                quote do
+                  field(unquote(field), unquote(type))
+                end
               end
           ] ++
             if associations do
-            for {field, assoc, schema, fields} <- assocs do
-              case assoc do
-                %Ecto.Association.BelongsTo{} ->
-                  quote do
-                    field(unquote(field), unquote(schema)) do
-                      unquote(Dilute.args(fields))
+              for {field, assoc, schema, fields} <- assocs do
+                case assoc do
+                  %Ecto.Association.BelongsTo{} ->
+                    quote do
+                      field(unquote(field), unquote(schema)) do
+                        unquote(Dilute.args(fields))
+                      end
                     end
-                  end
 
-                %Ecto.Association.Has{} ->
-                  quote do
-                    field(unquote(field), list_of(unquote(schema))) do
-                      unquote(Dilute.args(fields))
+                  %Ecto.Association.Has{} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema))) do
+                        unquote(Dilute.args(fields))
+                      end
                     end
-                  end
 
-                _ ->
-                  raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+                  _ ->
+                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+                end
               end
-            end
             else
               []
-              # end
             end
         )
       end
@@ -198,6 +207,19 @@ defmodule Dilute do
     |> (fn schema -> [schema, schema <> "s"] end).()
     |> Enum.map(&String.to_atom/1)
     |> List.to_tuple()
+  end
+
+  defp ecto_check(module) do
+    cond do
+      not Code.ensure_compiled?(module) ->
+        raise "referenced module #{inspect(module)} could not be complied/loaded"
+
+      not function_exported?(module, :__schema__, 2) ->
+        raise "referenced module #{inspect(module)} is not an Ecto schema"
+
+      true ->
+        :ok
+    end
   end
 
   defp exclude(lst, []) do

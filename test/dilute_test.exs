@@ -1,45 +1,8 @@
 defmodule DiluteTest do
   use ExUnit.Case
+  alias DiluteTest.Environment.Absinthe.Types
+
   doctest Dilute
-
-  defmodule Types do
-    use Absinthe.Schema.Notation
-    import Dilute
-    alias DiluteTest.{Post, Comment}
-
-    ecto_object Post do
-      field(:id, :integer)
-      field(:name, :integer)
-    end
-
-    ecto_object Comment do
-    end
-  end
-
-  defmodule Resolver do
-    use Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: DiluteTest.Repo
-  end
-
-  defmodule Schema do
-    use Absinthe.Schema
-    import_types(DiluteTest.Types)
-
-    query do
-      @desc "Get one Post"
-      field :post, :post do
-        resolve(&DiluteTest.Resolver.resolve/3)
-      end
-
-      @desc "Get all Posts"
-      field :posts, list_of(:post) do
-        resolve(&DiluteTest.Resolver.resolve/3)
-      end
-    end
-
-    # query do
-    #   MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
-    # end
-  end
 
   describe "Type definitions" do
     test "completeness" do
