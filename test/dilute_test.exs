@@ -14,23 +14,29 @@ defmodule DiluteTest do
 
       assert %{
                title: %{type: :string},
-               # content: %{type: {:array, :string}},
                votes: %{type: :integer},
-               #  flair: %{type: :binary}
-               published: %{type: :boolean}
-
-               # has_many(:comments, DiluteTest.Comment)
+               published: %{type: :boolean},
+               updated_at: %{type: :naive_datetime},
+               inserted_at: %{type: :naive_datetime},
+               #  rating: %{type: :float},
+               comments: _
              } = fields
     end
 
     test "definition shadowing" do
       refute match?(
-               %{fields: %{id: %{type: :integer}, name: %{type: :string}}},
+               %{fields: %{rating: %{type: :integer}}},
                Types.__absinthe_type__(:post)
              )
 
-      assert %{fields: %{id: %{type: :integer}, name: %{type: :integer}}} =
-               Types.__absinthe_type__(:post)
+      assert %{fields: %{rating: %{type: :float}}} = Types.__absinthe_type__(:post)
+    end
+
+    test "excludes" do
+      refute match?(
+               %{fields: %{post: _}},
+               Types.__absinthe_type__(:comment)
+             )
     end
   end
 end

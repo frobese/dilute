@@ -3,9 +3,10 @@ defmodule DiluteTest.Environment.Absinthe.Types do
   import Dilute
   alias DiluteTest.Environment.Ecto.{Post, Comment}
 
-  ecto_object Post do
+  ecto_object Post, exclude: :id do
+    field(:rating, :float)
   end
 
-  ecto_object Comment do
+  ecto_object Comment, exclude: :post do
   end
 end

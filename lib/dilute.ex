@@ -87,33 +87,25 @@ defmodule Dilute do
   @default_opts [associations: true, exclude: []]
   defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
-    opts = Keyword.merge(@default_opts, opts)
+
+    opts =
+      Keyword.merge(@default_opts, opts)
+      |> update_in([:exclude], &List.wrap/1)
 
     ecto_check(module)
 
-    env = __CALLER__
-
-    # module.__schema__(:source)
     {schema, schema_plural} = schema_tuple(module)
 
-    # # Module.register_attribute(__CALLER__.module, :exclude, accumulate: true)
-    # exclude = Module.get_attribute(__CALLER__.module, :exclude) || []
-
-    # exclude
-    # |> IO.inspect(label: "exclude", limit: 30000)
-
-    # fields = fields(module, Keyword.get(exclude, module, []))
     fields = fields(module, opts[:exclude])
 
     assocs =
       module.__schema__(:associations)
-      # |> exclude(exclude)
+      |> exclude(opts[:exclude])
       |> Enum.map(fn field ->
         assoc = %{related: mod} = module.__schema__(:association, field)
 
         {schema, _schema_plural} = schema_tuple(mod)
 
-        # fields = fields(mod, Keyword.get(exclude, mod, []))
         fields = fields(mod, [])
 
         {field, assoc, schema, fields}
@@ -124,8 +116,6 @@ defmodule Dilute do
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       defmacro query_fields(unquote(schema), resolver) do
-        exclude = unquote(opts[:exclude])
-
         fields = unquote(fields)
 
         schema = unquote(schema)
@@ -156,7 +146,7 @@ defmodule Dilute do
         unquote(
           [
             quote do
-              Macro.expand_once(unquote(block), unquote(env))
+              Macro.expand_once(unquote(block), unquote(__CALLER__))
             end
             | for {field, type} <- fields do
                 quote do
@@ -165,6 +155,8 @@ defmodule Dilute do
               end
           ] ++
             if opts[:associations] do
+              IO.inspect("#{module} assocs: #{true}")
+
               for {field, assoc, schema, fields} <- assocs do
                 case assoc do
                   %Ecto.Association.BelongsTo{} ->
