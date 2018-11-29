@@ -96,8 +96,19 @@ defmodule Dilute do
         {field, assoc, schema, fields}
       end)
 
+    joins =
+      assocs
+      |> Enum.reduce([], fn {field, assoc, _, _}, acc ->
+        case assoc do
+          %Ecto.Association.BelongsTo{} -> [field | acc]
+          %Ecto.Association.Has{} -> [field | acc]
+          _ -> acc
+        end
+      end)
+
     quote do
       def __object__(:schema, unquote(schema)), do: unquote(module)
+      def __object__(:joins, unquote(schema)), do: unquote(joins)
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       defmacro query_fields(unquote(schema), resolver) do
@@ -140,8 +151,6 @@ defmodule Dilute do
               end
           ] ++
             if opts[:associations] do
-              IO.inspect("#{module} assocs: #{true}")
-
               for {field, assoc, schema, fields} <- assocs do
                 case assoc do
                   %Ecto.Association.BelongsTo{} ->

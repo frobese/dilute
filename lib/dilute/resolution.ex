@@ -26,6 +26,7 @@ defmodule Dilute.Resolution do
     select: [],
     where: [],
     join: [],
+    type_module: nil,
     cardinality: nil
   ]
 
@@ -38,6 +39,7 @@ defmodule Dilute.Resolution do
 
   def derive_resolution(nil, %Resolution{definition: field}) do
     derive_resolution(field)
+    |> IO.inspect()
   end
 
   def derive_resolution(nil, %Document.Field{
@@ -47,7 +49,7 @@ defmodule Dilute.Resolution do
       }) do
     {type, cardinality} =
       node
-      |> get_type()
+      |> type()
 
     if type in @absinthe_types do
       raise "Root Type has to be a schema"
@@ -56,6 +58,7 @@ defmodule Dilute.Resolution do
         ident: node.identifier,
         type: type,
         cardinality: cardinality,
+        type_module: module(node, type),
         where: Map.to_list(argument_data)
       }
       |> derive_resolution(select)
@@ -69,11 +72,9 @@ defmodule Dilute.Resolution do
       }) do
     {type, cardinality} =
       node
-      |> get_type()
+      |> type()
 
-    if type in @absinthe_types do
-      %__MODULE__{res | select: [node.identifier | res.select]}
-    else
+    if node.identifier in joins(res) do
       %__MODULE__{
         res
         | join: [
@@ -82,6 +83,7 @@ defmodule Dilute.Resolution do
                 ident: node.identifier,
                 type: type,
                 cardinality: cardinality,
+                type_module: module(node, type),
                 where: Map.to_list(argument_data)
               },
               select
@@ -89,6 +91,8 @@ defmodule Dilute.Resolution do
             | res.join
           ]
       }
+    else
+      %__MODULE__{res | select: [node.identifier | res.select]}
     end
   end
 
@@ -100,6 +104,28 @@ defmodule Dilute.Resolution do
     |> derive_resolution(t)
   end
 
-  defp get_type(%Field{type: %List{of_type: type}}), do: {type, :many}
-  defp get_type(%Field{type: type}), do: {type, :one}
+  defp type(%Field{type: %List{of_type: type}}), do: {type, :many}
+  defp type(%Field{type: type}), do: {type, :one}
+
+  defp module(%{__reference__: %{module: module}}, type) do
+    cond do
+      function_exported?(module, :__object__, 2) ->
+        module
+
+      function_exported?(module, :__absinthe_type__, 1) ->
+        Absinthe.Schema.lookup_type(module, type)
+        |> module(type)
+
+      true ->
+        nil
+    end
+  end
+
+  def joins(%__MODULE__{type: type, type_module: module}) when not is_nil(type) do
+    module.__object__(:joins, type)
+  rescue
+    FunctionClauseError -> []
+  end
+
+  def joins(_resolution), do: []
 end
