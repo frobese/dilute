@@ -1,6 +1,6 @@
 defmodule Dilute.Query do
   @moduledoc """
-  Resolution Translation
+  Ecto query builder for `Resolution`s.
   """
   import Ecto.Query
   alias Dilute.Resolution
@@ -11,7 +11,7 @@ defmodule Dilute.Query do
   end
 
   @doc """
-  Translates a given `Dilute.Resolution` into an `Ecto.Query`.
+  Builds an `Ecto.Query` for the given `Resolution`.
   """
   @spec generate_query(
           Ecto.Queryable.t(),
@@ -23,6 +23,7 @@ defmodule Dilute.Query do
   def generate_query(query, resolution, bindings \\ [], assocs \\ [], current_bind \\ nil)
 
   def generate_query(query, %Resolution{} = res, [], [], nil) do
+    # entry-point
     current_bind = {0, res.type}
     bindings = [current_bind]
 
@@ -37,6 +38,7 @@ defmodule Dilute.Query do
         assocs,
         {curr_index, _curr_ref} = current_bind
       ) do
+    # process joins
     next_bind = {length(bindings), h.type}
     {next_index, _} = next_bind
 
@@ -58,6 +60,7 @@ defmodule Dilute.Query do
         assocs,
         {curr_index, _curr_ref} = current_bind
       ) do
+    # process where conditions
     query
     |> where([ref: curr_index], field(ref, ^key) == ^value)
     |> generate_query(%Resolution{res | where: rest}, bindings, assocs, current_bind)
@@ -77,6 +80,7 @@ defmodule Dilute.Query do
   # end
 
   def generate_query(query, _resolution, bindings, assocs, _current_bind) do
+    # final
     {query, bindings, assocs}
   end
 end

@@ -8,11 +8,16 @@ defmodule Dilute.Resolution do
   alias Absinthe.Type.{Field, List}
 
   @absinthe_types [
-    :boolean,
-    :float,
-    :string,
     :id,
-    :integer
+    :integer,
+    :float,
+    :boolean,
+    :string,
+    :decimal,
+    :date,
+    :time,
+    :naive_datetime,
+    :datetime
   ]
 
   defstruct [

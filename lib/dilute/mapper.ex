@@ -10,8 +10,6 @@ defmodule Dilute.Mapper do
   def map(:float), do: :float
   def map(:boolean), do: :boolean
   def map(:string), do: :string
-  # def map(:binary), do: :string
-  # def map(:map), do:
   def map(:decimal), do: :decimal
   def map(:date), do: :date
   def map(:time), do: :time
@@ -20,6 +18,8 @@ defmodule Dilute.Mapper do
   def map(:utc_datetime), do: :datetime
   def map(:utc_datetime_usec), do: :datetime
 
+  # def map(:binary), do: :string
+  # def map(:map), do:
   # def map({:array, type}) do
   #   type
   #   |> map()

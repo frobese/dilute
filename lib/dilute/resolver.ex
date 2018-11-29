@@ -1,6 +1,8 @@
 defmodule Dilute.Resolver do
   @moduledoc """
-  Using the Resolver implements the `resolve/3` function which evaluates a given resolution based on the given object definitions.
+  The `Resolver` implements the `resolve/3` function for the given types and their repo.
+
+  The resolver requires the parent element to be `%{}` and build the query and submits the request based on the `Resolution` derived from the `Absinthe.Resolution`, `args` are not evaluated since they are included in the Absinthe resolution.
   """
   require Logger
   alias Dilute.{Resolution, Query}
@@ -12,7 +14,7 @@ defmodule Dilute.Resolver do
 
       def resolve(
             %{},
-            args,
+            _args,
             resolution
           ) do
         resolution =

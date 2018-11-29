@@ -1,18 +1,21 @@
 defmodule Dilute do
   @moduledoc """
   `Ecto.Schema` are very similar to `Absinthe.Type.Object` definitions and are required to be kept in sync.
-  Dilute is able to derive `Absinthe.Type.Object` on their relations based on `Ecto.Schema` definitions.
+  Dilute is able to derive Absinthe objects and their relations based on `Ecto.Schema` definitions and offers the ability to translate query resolutions into efficient SQL statements.
 
   ## Types
   Absinthe objects placed inside your `Types` module:
 
       defmodule MyAppWeb.Schema.Types do
         use Absinthe.Schema.Notation
-        require Dilute
+        import Dilute
         alias MyApp.Blog.{Post, Comment}
 
-        Dilute.object(Post)
-        Dilute.object(Comment)
+        ecto_object Post do
+        end
+
+        ecto_object Comment do
+        end
       end
 
   ## Resolution
@@ -22,8 +25,7 @@ defmodule Dilute do
         use Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: MyApp.Repo
       end
 
-  Queries can either be defined using the `resolve/3` function or the `query_fields/2` macro
-
+  Queries can either be defined using the `resolve/3` function ...
 
       defmodule MyAppWeb.Schema do
         use Absinthe.Schema
@@ -34,7 +36,10 @@ defmodule Dilute do
           field :post, :post do
               resolve(&MyAppWeb.Resolver.resolve/3)
           end
+        end
+      end
 
+  ... or the `query_fields/2` macro.
 
       defmodule MyAppWeb.Schema do
         use Absinthe.Schema
@@ -43,46 +48,26 @@ defmodule Dilute do
         alias BlogWeb.Resolvers
 
         query do
-          @desc "Get one Post"
-          field :post, :post do
-              resolve(&MyAppWeb.Resolver.resolve/3)
-          end
-
-          @desc "Get all Posts"
-          field :posts, list_of(:post) do
-            resolve(&MyAppWeb.Resolver.resolve/3)
-          end
-
-          query do
-            MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
-          end
+          MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
         end
       end
 
   """
-  import Absinthe.Schema.Notation
-  require Dilute.Query
-
-  defmacro __using__(_) do
-    IO.puts("Register exclude for caller")
-
-    quote do
-      Module.register_attribute(__MODULE__, :exclude, accumulate: false, persist: true)
-    end
-  end
 
   @doc """
   Defines an Absinthe object based on the ecto schema of the given module.
 
-  Fields can be excluded by including the respective field in the `@exclude` attribute:
+  Settings the `:associations` option to `false` will omit the associations in the definition.
+  Fields can be excluded using the `:exclude` option.
 
-      @exclude [
-        # ...
-        {User, [:email, :forename]}
-        # ...
-      ]
+      ecto_object User, exclude: [:email, :forename], associations: false do
+      end
 
-      Dilute.object(User)
+  Additionally the do block will override any field definitions.
+
+      ecto_object Post do
+        field(:title, :string)
+      end
   """
   @default_opts [associations: true, exclude: []]
   defmacro ecto_object(module, opts \\ [], do: block) do
