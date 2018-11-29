@@ -12,11 +12,13 @@ defmodule Dilute.MixProject do
       deps: deps(),
       name: "Dilute",
       docs: docs(),
-      elixirc_paths: elixirc_paths(Mix.env())
+      elixirc_paths: elixirc_paths(Mix.env()),
+      aliases: aliases()
     ]
   end
 
   def elixirc_paths(:test), do: ["test/environment" | elixirc_paths(nil)]
+  def elixirc_paths(:dev), do: ["test/environment" | elixirc_paths(nil)]
 
   def elixirc_paths(_), do: ["lib"]
 
@@ -32,7 +34,8 @@ defmodule Dilute.MixProject do
     [
       {:ecto, "~> 2.0"},
       {:absinthe, "~> 1.4"},
-      {:ex_doc, "~> 0.19", only: :dev}
+      {:ex_doc, "~> 0.19", only: :dev},
+      {:mariaex, ">= 0.0.0", only: :test}
     ]
   end
 
@@ -57,6 +60,12 @@ defmodule Dilute.MixProject do
       files: ~w(lib .formatter.exs mix.exs README* LICENSE*),
       licenses: ["Apache 2.0"],
       links: %{"GitHub" => "https://github.com/frobese/dilute"}
+    ]
+  end
+
+  defp aliases() do
+    [
+      test: ["ecto.create --quiet", "ecto.migrate", "test"]
     ]
   end
 end
