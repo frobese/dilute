@@ -1,10 +1,11 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
+  @version "0.2.0"
   def project do
     [
       app: :dilute,
-      version: "0.2.0-dev",
+      version: @version,
       elixir: "~> 1.7",
       start_permanent: Mix.env() == :prod,
       description: description(),
@@ -17,8 +18,8 @@ defmodule Dilute.MixProject do
     ]
   end
 
-  def elixirc_paths(:test), do: ["test/environment" | elixirc_paths(nil)]
-  def elixirc_paths(:dev), do: ["test/environment" | elixirc_paths(nil)]
+  def elixirc_paths(:test), do: ["test/support", "test/environment" | elixirc_paths(nil)]
+  def elixirc_paths(:dev), do: ["test/support", "test/environment" | elixirc_paths(nil)]
 
   def elixirc_paths(_), do: ["lib"]
 
@@ -46,7 +47,7 @@ defmodule Dilute.MixProject do
   defp docs do
     [
       main: "Dilute",
-      # source_ref: "v#{@version}",
+      source_ref: "v#{@version}",
       canonical: "http://hexdocs.pm/dilute",
       # logo: "guides/images/e.png",
       source_url: "https://github.com/frobese/dilute"

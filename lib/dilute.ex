@@ -19,7 +19,7 @@ defmodule Dilute do
       end
 
   ## Resolution
-  The resolver can be defined as:
+  The resolver can be defined with:
 
       defmodule MyAppWeb.Resolver do
         use Dilute.Resolver, types: MyAppWeb.Schema.Types, repo: MyApp.Repo
@@ -29,12 +29,13 @@ defmodule Dilute do
 
       defmodule MyAppWeb.Schema do
         use Absinthe.Schema
-        import_types(MyAppWeb.Schema.Types)
+        alias MyAppWeb.{Resolver, Schema}
+        import_types(Schema.Types)
 
         query do
           @desc "Get one Post"
           field :post, :post do
-              resolve(&MyAppWeb.Resolver.resolve/3)
+            resolve(&Resolver.resolve/3)
           end
         end
       end
@@ -43,9 +44,8 @@ defmodule Dilute do
 
       defmodule MyAppWeb.Schema do
         use Absinthe.Schema
-        import_types(MyAppWeb.Schema.Types)
-
-        alias BlogWeb.Resolvers
+        alias MyAppWeb.{Resolver, Schema}
+        import_types(Schema.Types)
 
         query do
           MyWebApp.Schema.query_fields(:post, &Resolver.resolve/3)
@@ -60,13 +60,13 @@ defmodule Dilute do
   Settings the `:associations` option to `false` will omit the associations in the definition.
   Fields can be excluded using the `:exclude` option.
 
-      ecto_object User, exclude: [:email, :forename], associations: false do
+      ecto_object Post, exclude: :id do
       end
 
   Additionally the do block will override any field definitions.
 
       ecto_object Post do
-        field(:title, :string)
+        field(:rating, :float)
       end
   """
   @default_opts [associations: true, exclude: []]
@@ -179,8 +179,8 @@ defmodule Dilute do
     end
   end
 
+  @spec schema_tuple(module()) :: {singular :: atom(), plural :: atom()}
   defp schema_tuple(module) when is_atom(module) do
-    # {schema, schema_plural} =
     module
     |> Module.split()
     |> List.last()
