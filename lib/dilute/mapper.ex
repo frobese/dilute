@@ -2,7 +2,6 @@ defmodule Dilute.Mapper do
   @moduledoc """
   Type-mapper matching ecto types onto absinthe compatible Types.
   """
-  # import Absinthe.Schema.Notation, only: [list_of: 1]
 
   def map(:id), do: :id
   def map(:binary_id), do: :id
@@ -18,13 +17,9 @@ defmodule Dilute.Mapper do
   def map(:utc_datetime), do: :datetime
   def map(:utc_datetime_usec), do: :datetime
 
-  # def map(:binary), do: :string
-  # def map(:map), do:
-  # def map({:array, type}) do
-  #   type
-  #   |> map()
-  #   |> list_of()
-  # end
+  def map(field_type) when is_atom(field_type) do
+    raise("No appropriate field definition for #{field_type}")
+  end
 
-  # {:map, inner_type}	map
+  def map(field), do: raise("Field type expected to be atom got #{inspect(field)}")
 end

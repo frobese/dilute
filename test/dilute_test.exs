@@ -4,7 +4,7 @@ defmodule DiluteTest do
 
   doctest Dilute
 
-  describe "Type definitions" do
+  describe "Object definition testing" do
     test "completeness" do
       assert %{:post => "Post", :comment => "Comment"} = Types.__absinthe_types__()
     end

@@ -184,7 +184,7 @@ defmodule Dilute do
     module
     |> Module.split()
     |> List.last()
-    |> String.downcase()
+    |> Macro.underscore()
     |> (fn schema -> [schema, schema <> "s"] end).()
     |> Enum.map(&String.to_atom/1)
     |> List.to_tuple()

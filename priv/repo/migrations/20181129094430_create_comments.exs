@@ -3,18 +3,15 @@ defmodule DiluteTest.Environment.Ecto.Repo.Migrations.CreateComments do
 
   def up do
     create table(:comments) do
-      add(:name, :string)
-      add(:post_id, :integer)
+      add(:content, :string)
+      add(:votes, :integer)
+      add(:post_id, references(:posts))
 
       timestamps()
-    end
-
-    alter table(:comments) do
-      modify :post_id, references(:posts)
     end
   end
 
   def down do
-    drop table(:comments)
+    drop(table(:comments))
   end
 end

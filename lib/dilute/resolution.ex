@@ -39,7 +39,6 @@ defmodule Dilute.Resolution do
 
   def derive_resolution(nil, %Resolution{definition: field}) do
     derive_resolution(field)
-    |> IO.inspect()
   end
 
   def derive_resolution(nil, %Document.Field{
