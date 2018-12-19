@@ -127,8 +127,10 @@ defmodule Dilute do
           field unquote(schema_plural), list_of(unquote(schema)) do
             unquote(
               for {field, type} <- fields do
-                quote do
-                  arg(unquote(field), unquote(type))
+                if is_atom(type) do
+                  quote do
+                    arg(unquote(field), unquote(type))
+                  end
                 end
               end
             )
@@ -145,8 +147,21 @@ defmodule Dilute do
               Macro.expand_once(unquote(block), unquote(__CALLER__))
             end
             | for {field, type} <- fields do
-                quote do
-                  field(unquote(field), unquote(type))
+                case type do
+                  {:one, schema} ->
+                    quote do
+                      field(unquote(field), unquote(schema))
+                    end
+
+                  {:many, schema} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema)))
+                    end
+
+                  type ->
+                    quote do
+                      field(unquote(field), unquote(type))
+                    end
                 end
               end
           ] ++
@@ -226,7 +241,16 @@ defmodule Dilute do
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
-      type = Dilute.Mapper.map(module.__schema__(:type, field))
+      type =
+        case module.__schema__(:type, field) do
+          {:embed, %Ecto.Embedded{related: related, cardinality: cardinality}} ->
+            {schema, _schema_plural} = schema_tuple(related)
+            {cardinality, schema}
+
+          type ->
+            Dilute.Mapper.map(type)
+        end
+
       {field, type}
     end)
   end
