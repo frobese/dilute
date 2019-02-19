@@ -69,13 +69,14 @@ defmodule Dilute do
         field(:rating, :float)
       end
   """
-  @default_opts [associations: true, exclude: []]
+  @default_ecto_object [associations: true, exclude: []]
+  @default_ecto_input_object [associations: true, exclude: [], prefix: true]
   @input_prefix "input_"
   defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
 
     opts =
-      Keyword.merge(@default_opts, opts)
+      Keyword.merge(@default_ecto_object, opts)
       |> update_in([:exclude], &List.wrap/1)
 
     ecto_check(module)
@@ -184,17 +185,21 @@ defmodule Dilute do
     end
   end
 
-  @default_opts [associations: true, exclude: []]
   defmacro ecto_input_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
 
     opts =
-      Keyword.merge(@default_opts, opts)
+      Keyword.merge(@default_ecto_input_object, opts)
       |> update_in([:exclude], &List.wrap/1)
 
     ecto_check(module)
 
-    {schema, _schema_plural} = schema_tuple(module, @input_prefix)
+    {schema, _schema_plural} =
+      if opts[:prefix] do
+        schema_tuple(module, @input_prefix)
+      else
+        schema_tuple(module)
+      end
 
     fields = fields(module, opts[:exclude])
 
