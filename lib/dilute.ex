@@ -70,6 +70,7 @@ defmodule Dilute do
       end
   """
   @default_opts [associations: true, exclude: []]
+  @input_prefix "input_"
   defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
 
@@ -83,18 +84,7 @@ defmodule Dilute do
 
     fields = fields(module, opts[:exclude])
 
-    assocs =
-      module.__schema__(:associations)
-      |> exclude(opts[:exclude])
-      |> Enum.map(fn field ->
-        assoc = %{related: mod} = module.__schema__(:association, field)
-
-        {schema, _schema_plural} = schema_tuple(mod)
-
-        fields = fields(mod, [])
-
-        {field, assoc, schema, fields}
-      end)
+    assocs = associations(module, opts[:exclude])
 
     joins =
       assocs
@@ -194,12 +184,84 @@ defmodule Dilute do
     end
   end
 
-  @spec schema_tuple(module()) :: {singular :: atom(), plural :: atom()}
-  defp schema_tuple(module) when is_atom(module) do
+  @default_opts [associations: true, exclude: []]
+  defmacro ecto_input_object(module, opts \\ [], do: block) do
+    module = Macro.expand(module, __CALLER__)
+
+    opts =
+      Keyword.merge(@default_opts, opts)
+      |> update_in([:exclude], &List.wrap/1)
+
+    ecto_check(module)
+
+    {schema, _schema_plural} = schema_tuple(module, @input_prefix)
+
+    fields = fields(module, opts[:exclude])
+
+    assocs = associations(module, opts[:exclude])
+
+    quote do
+      input_object unquote(schema) do
+        unquote(
+          [
+            quote do
+              Macro.expand_once(unquote(block), unquote(__CALLER__))
+            end
+            | for {field, type} <- fields do
+                case type do
+                  {:one, schema} ->
+                    quote do
+                      field(unquote(field), unquote(schema))
+                    end
+
+                  {:many, schema} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema)))
+                    end
+
+                  type ->
+                    quote do
+                      field(unquote(field), unquote(type))
+                    end
+                end
+              end
+          ] ++
+            if opts[:associations] do
+              for {field, assoc, schema, fields} <- assocs do
+                case assoc do
+                  %Ecto.Association.BelongsTo{} ->
+                    quote do
+                      field(unquote(field), unquote(schema)) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  %Ecto.Association.Has{} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema))) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  _ ->
+                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+                end
+              end
+            else
+              []
+            end
+        )
+      end
+    end
+  end
+
+  @spec schema_tuple(module(), String.t()) :: {singular :: atom(), plural :: atom()}
+  defp schema_tuple(module, prefix \\ "") when is_atom(module) do
     module
     |> Module.split()
     |> List.last()
     |> Macro.underscore()
+    |> (fn schema -> prefix <> schema end).()
     |> (fn schema -> [schema, schema <> "s"] end).()
     |> Enum.map(&String.to_atom/1)
     |> List.to_tuple()
@@ -237,6 +299,7 @@ defmodule Dilute do
     end
   end
 
+  # returns the field definition for a given module
   defp fields(module, exclude) do
     module.__schema__(:fields)
     |> exclude(exclude)
@@ -252,6 +315,21 @@ defmodule Dilute do
         end
 
       {field, type}
+    end)
+  end
+
+  # returns all associations for a given module
+  defp associations(module, exclude) do
+    module.__schema__(:associations)
+    |> exclude(exclude)
+    |> Enum.map(fn field ->
+      assoc = %{related: mod} = module.__schema__(:association, field)
+
+      {schema, _schema_plural} = schema_tuple(mod)
+
+      fields = fields(mod, [])
+
+      {field, assoc, schema, fields}
     end)
   end
 end

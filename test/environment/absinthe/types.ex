@@ -9,4 +9,7 @@ defmodule DiluteTest.Environment.Absinthe.Types do
 
   ecto_object Comment, exclude: :post do
   end
+
+  ecto_input_object Comment, exclude: :post do
+  end
 end
