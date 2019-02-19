@@ -11,11 +11,9 @@ defmodule Dilute do
         import Dilute
         alias MyApp.Blog.{Post, Comment}
 
-        ecto_object Post do
-        end
+        ecto_object(Post)
 
-        ecto_object Comment do
-        end
+        ecto_object(Comment)
       end
 
   ## Resolution
@@ -68,33 +66,29 @@ defmodule Dilute do
       ecto_object Post do
         field(:rating, :float)
       end
+
+  Ecto allows for Custom Type definitions which have to be overwritten.
   """
-  @default_opts [associations: true, exclude: []]
-  defmacro ecto_object(module, opts \\ [], do: block) do
+  @default_ecto_object [associations: true, exclude: []]
+  @default_ecto_input_object [associations: true, exclude: [], prefix: true]
+  @input_prefix "input_"
+  defmacro ecto_object(module, opts \\ [], [do: block] \\ [do: []]) do
     module = Macro.expand(module, __CALLER__)
+    ecto_check(module)
 
     opts =
-      Keyword.merge(@default_opts, opts)
+      Keyword.merge(@default_ecto_object, opts)
       |> update_in([:exclude], &List.wrap/1)
 
-    ecto_check(module)
+    overrides = overrides(block)
+    expanded_exlcudes = opts[:exclude] ++ overrides
+
+    warnings(__CALLER__, module, opts[:exclude])
 
     {schema, schema_plural} = schema_tuple(module)
 
-    fields = fields(module, opts[:exclude])
-
-    assocs =
-      module.__schema__(:associations)
-      |> exclude(opts[:exclude])
-      |> Enum.map(fn field ->
-        assoc = %{related: mod} = module.__schema__(:association, field)
-
-        {schema, _schema_plural} = schema_tuple(mod)
-
-        fields = fields(mod, [])
-
-        {field, assoc, schema, fields}
-      end)
+    fields = fields(module, expanded_exlcudes, @input_prefix)
+    assocs = associations(module, expanded_exlcudes)
 
     joins =
       assocs
@@ -107,9 +101,18 @@ defmodule Dilute do
       end)
 
     quote do
-      def __object__(:schema, unquote(schema)), do: unquote(module)
+      def __object__(:module, unquote(schema)), do: unquote(module)
+      def __object__(:schema, unquote(module)), do: unquote(schema)
       def __object__(:joins, unquote(schema)), do: unquote(joins)
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
+
+      # defmacro query_fields(unquote(module), resolver) do
+      #   schema = unquote(schema)
+
+      #   quote do
+      #     querry_fields(unquote(schema), unquote(resolver))
+      #   end
+      # end
 
       defmacro query_fields(unquote(schema), resolver) do
         fields = unquote(fields)
@@ -194,12 +197,108 @@ defmodule Dilute do
     end
   end
 
-  @spec schema_tuple(module()) :: {singular :: atom(), plural :: atom()}
-  defp schema_tuple(module) when is_atom(module) do
+  defmacro ecto_input_object(module, opts \\ [], [do: block] \\ [do: []]) do
+    module = Macro.expand(module, __CALLER__)
+    ecto_check(module)
+
+    opts =
+      Keyword.merge(@default_ecto_input_object, opts)
+      |> update_in([:exclude], &List.wrap/1)
+
+    overrides = overrides(block)
+    expanded_exlcudes = opts[:exclude] ++ overrides
+
+    warnings(__CALLER__, module, opts[:exclude])
+
+    {schema, _schema_plural} =
+      if opts[:prefix] do
+        schema_tuple(module, @input_prefix)
+      else
+        schema_tuple(module)
+      end
+
+    fields = fields(module, expanded_exlcudes, @input_prefix)
+    assocs = associations(module, expanded_exlcudes)
+
+    quote do
+      # def __input_object__(:module, unquote(schema)), do: unquote(module)
+      # def __input_object__(:schema, unquote(module)), do: unquote(schema)
+
+      input_object unquote(schema) do
+        unquote(
+          [
+            quote do
+              Macro.expand_once(unquote(block), unquote(__CALLER__))
+            end
+            | for {field, type} <- fields do
+                case type do
+                  {:one, schema} ->
+                    quote do
+                      field(unquote(field), unquote(schema))
+                    end
+
+                  {:many, schema} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema)))
+                    end
+
+                  type ->
+                    quote do
+                      field(unquote(field), unquote(type))
+                    end
+                end
+              end
+          ] ++
+            if opts[:associations] do
+              for {field, assoc, schema, fields} <- assocs do
+                case assoc do
+                  %Ecto.Association.BelongsTo{} ->
+                    quote do
+                      field(unquote(field), unquote(schema)) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  %Ecto.Association.Has{} ->
+                    quote do
+                      field(unquote(field), list_of(unquote(schema))) do
+                        unquote(Dilute.args(fields))
+                      end
+                    end
+
+                  _ ->
+                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+                end
+              end
+            else
+              []
+            end
+        )
+      end
+    end
+  end
+
+  defp warnings(%{file: file, line: line}, module, excludes) do
+    identifiers = module.__schema__(:fields) ++ module.__schema__(:associations)
+
+    for exclude <- excludes do
+      if exclude not in identifiers do
+        :elixir_errors.warn(
+          line,
+          file,
+          "Excluding #{inspect(exclude)} wich is not present as a field in #{inspect(module)}"
+        )
+      end
+    end
+  end
+
+  @spec schema_tuple(module(), String.t()) :: {singular :: atom(), plural :: atom()}
+  defp schema_tuple(module, prefix \\ "") when is_atom(module) do
     module
     |> Module.split()
     |> List.last()
     |> Macro.underscore()
+    |> (fn schema -> prefix <> schema end).()
     |> (fn schema -> [schema, schema <> "s"] end).()
     |> Enum.map(&String.to_atom/1)
     |> List.to_tuple()
@@ -237,21 +336,63 @@ defmodule Dilute do
     end
   end
 
-  defp fields(module, exclude) do
+  # returns the field definition for a given module
+  defp fields(module, exclude, prefix \\ "") do
+    import Dilute.Mapper
+
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
       type =
         case module.__schema__(:type, field) do
           {:embed, %Ecto.Embedded{related: related, cardinality: cardinality}} ->
-            {schema, _schema_plural} = schema_tuple(related)
+            {schema, _schema_plural} = schema_tuple(related, prefix)
+
             {cardinality, schema}
 
+          {:array, type} ->
+            {:many, map(type)}
+
           type ->
-            Dilute.Mapper.map(type)
+            map(type)
         end
 
       {field, type}
     end)
+  end
+
+  # returns all associations for a given module
+  defp associations(module, exclude) do
+    module.__schema__(:associations)
+    |> exclude(exclude)
+    |> Enum.map(fn field ->
+      assoc = %{related: mod} = module.__schema__(:association, field)
+
+      {schema, _schema_plural} = schema_tuple(mod)
+
+      fields = fields(mod, [])
+
+      {field, assoc, schema, fields}
+    end)
+  end
+
+  defp overrides([]) do
+    []
+  end
+
+  defp overrides({:__block__, _, block}) do
+    overrides(block)
+  end
+
+  defp overrides({:field, _, [field | _]}) do
+    [field]
+  end
+
+  defp overrides([{:field, _, [field | _]} | rest]) do
+    [field | overrides(rest)]
+  end
+
+  defp overrides([_ | rest]) do
+    overrides(rest)
   end
 end

@@ -6,7 +6,8 @@ defmodule DiluteTest do
 
   describe "Object definition testing" do
     test "completeness" do
-      assert %{:post => "Post", :comment => "Comment"} = Types.__absinthe_types__()
+      assert %{:post => "Post", :comment => "Comment", :message => "Message"} =
+               Types.__absinthe_types__()
     end
 
     test "field integrity" do
@@ -18,7 +19,8 @@ defmodule DiluteTest do
                published: %{type: :boolean},
                updated_at: %{type: :naive_datetime},
                inserted_at: %{type: :naive_datetime},
-               #  rating: %{type: :float},
+               rating: %{type: :float},
+               retrieved: %{type: :date},
                comments: _
              } = fields
     end
@@ -37,6 +39,11 @@ defmodule DiluteTest do
                %{fields: %{post: _}},
                Types.__absinthe_type__(:comment)
              )
+    end
+
+    test "array fields" do
+      assert %{fields: %{lines: %{type: %Absinthe.Type.List{of_type: :string}}}} =
+               Types.__absinthe_type__(:message)
     end
   end
 end

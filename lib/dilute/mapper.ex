@@ -18,8 +18,20 @@ defmodule Dilute.Mapper do
   def map(:utc_datetime_usec), do: :datetime
 
   def map(field_type) when is_atom(field_type) do
-    raise("No appropriate field definition for #{field_type}")
+    if ecto_custom_type?(field_type) do
+      map(field_type.type())
+    else
+      raise("No appropriate field definition for #{field_type}")
+    end
   end
 
   def map(field), do: raise("Field type expected to be atom got #{inspect(field)}")
+
+  defp ecto_custom_type?(module) do
+    Code.ensure_compiled?(module) and
+      function_exported?(module, :cast, 1) and
+      function_exported?(module, :dump, 1) and
+      function_exported?(module, :load, 1) and
+      function_exported?(module, :type, 0)
+  end
 end

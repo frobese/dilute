@@ -1,7 +1,7 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
-  @version "0.2.1"
+  @version "0.2.2"
   def project do
     [
       app: :dilute,
@@ -41,7 +41,7 @@ defmodule Dilute.MixProject do
   end
 
   defp description() do
-    "Absinthe integration based on Ecto schemata"
+    "Absinthe integration based on Ecto schema"
   end
 
   defp docs do
