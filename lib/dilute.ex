@@ -359,6 +359,10 @@ defmodule Dilute do
     overrides(block)
   end
 
+  defp overrides({:field, _, [field | _]}) do
+    [field]
+  end
+
   defp overrides([{:field, _, [field | _]} | rest]) do
     [field | overrides(rest)]
   end
