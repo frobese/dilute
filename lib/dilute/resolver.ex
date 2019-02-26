@@ -22,7 +22,7 @@ defmodule Dilute.Resolver do
           |> Resolution.derive_resolution()
 
         query =
-          unquote(mod).__object__(:schema, resolution.type)
+          unquote(mod).__object__(:module, resolution.type)
           |> Query.generate_query(resolution)
 
         result =

@@ -74,12 +74,12 @@ defmodule Dilute do
   @input_prefix "input_"
   defmacro ecto_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
+    ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_object, opts)
       |> update_in([:exclude], &List.wrap/1)
-
-    ecto_check(module)
+      |> update_in([:exclude], fn list -> list ++ overrides(block) end)
 
     {schema, schema_plural} = schema_tuple(module)
 
@@ -98,9 +98,18 @@ defmodule Dilute do
       end)
 
     quote do
-      def __object__(:schema, unquote(schema)), do: unquote(module)
+      def __object__(:module, unquote(schema)), do: unquote(module)
+      def __object__(:schema, unquote(module)), do: unquote(schema)
       def __object__(:joins, unquote(schema)), do: unquote(joins)
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
+
+      # defmacro query_fields(unquote(module), resolver) do
+      #   schema = unquote(schema)
+
+      #   quote do
+      #     querry_fields(unquote(schema), unquote(resolver))
+      #   end
+      # end
 
       defmacro query_fields(unquote(schema), resolver) do
         fields = unquote(fields)
@@ -187,12 +196,12 @@ defmodule Dilute do
 
   defmacro ecto_input_object(module, opts \\ [], do: block) do
     module = Macro.expand(module, __CALLER__)
+    ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_input_object, opts)
       |> update_in([:exclude], &List.wrap/1)
-
-    ecto_check(module)
+      |> update_in([:exclude], fn list -> list ++ overrides(block) end)
 
     {schema, _schema_plural} =
       if opts[:prefix] do
@@ -201,11 +210,14 @@ defmodule Dilute do
         schema_tuple(module)
       end
 
-    fields = fields(module, opts[:exclude])
+    fields = fields(module, opts[:exclude], @input_prefix)
 
     assocs = associations(module, opts[:exclude])
 
     quote do
+      # def __input_object__(:module, unquote(schema)), do: unquote(module)
+      # def __input_object__(:schema, unquote(module)), do: unquote(schema)
+
       input_object unquote(schema) do
         unquote(
           [
@@ -305,14 +317,15 @@ defmodule Dilute do
   end
 
   # returns the field definition for a given module
-  defp fields(module, exclude) do
+  defp fields(module, exclude, prefix \\ "") do
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
       type =
         case module.__schema__(:type, field) do
           {:embed, %Ecto.Embedded{related: related, cardinality: cardinality}} ->
-            {schema, _schema_plural} = schema_tuple(related)
+            {schema, _schema_plural} = schema_tuple(related, prefix)
+
             {cardinality, schema}
 
           type ->
@@ -336,5 +349,21 @@ defmodule Dilute do
 
       {field, assoc, schema, fields}
     end)
+  end
+
+  defp overrides([]) do
+    []
+  end
+
+  defp overrides({:__block__, _, block}) do
+    overrides(block)
+  end
+
+  defp overrides([{:field, _, [field | _]} | rest]) do
+    [field | overrides(rest)]
+  end
+
+  defp overrides([_ | rest]) do
+    overrides(rest)
   end
 end
