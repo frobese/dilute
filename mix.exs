@@ -1,7 +1,7 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
-  @version "0.2.2-dev.3"
+  @version "0.2.2-dev.4"
   def project do
     [
       app: :dilute,
