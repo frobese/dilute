@@ -19,9 +19,10 @@ defmodule Dilute.Mapper do
 
   def map(field_type) when is_atom(field_type) do
     if ecto_custom_type?(field_type) do
-      map(field_type.type())
+      {:custom, field_type}
     else
-      raise("No appropriate field definition for #{field_type}")
+      raise("The given type does not seam to be an ecto custom type got: #{field_type}")
+      # raise("No appropriate field definition for #{field_type}")
     end
   end
 

@@ -73,6 +73,7 @@ defmodule Dilute do
   @default_ecto_input_object [associations: true, exclude: [], prefix: true]
   @input_prefix "input_"
   defmacro ecto_object(module, opts \\ [], do: block) do
+    caller = __CALLER__.module
     module = Macro.expand(module, __CALLER__)
     ecto_check(module)
 
@@ -85,22 +86,36 @@ defmodule Dilute do
 
     fields = fields(module, opts[:exclude])
 
-    assocs = associations(module, opts[:exclude])
+    assocs = associations(module, opts[:exclude], caller)
 
-    joins =
-      assocs
-      |> Enum.reduce([], fn {field, assoc, _, _}, acc ->
-        case assoc do
-          %Ecto.Association.BelongsTo{} -> [field | acc]
-          %Ecto.Association.Has{} -> [field | acc]
-          _ -> acc
-        end
-      end)
+    joins = assocs
+    #   |> Enum.reduce([], fn {field, assoc, _, _}, acc ->
+    #     case assoc do
+    #       %Ecto.Association.BelongsTo{} ->
+    #         [field | acc]
+
+    #       %Ecto.Association.Has{} ->
+    #         [field | acc]
+
+    #       rem ->
+    #         IO.puts(inspect(rem))
+    #         acc
+    #     end
+    #   end)
+
+    IO.puts(inspect(schema))
+    IO.puts(inspect(assocs))
+
+    Enum.map(assocs, fn {_field, {_card, schema, _fields}} ->
+      IO.puts(inspect(__CALLER__))
+    end)
+
+    expanded_block = Macro.expand_once(block, __CALLER__)
 
     quote do
       def __object__(:module, unquote(schema)), do: unquote(module)
       def __object__(:schema, unquote(module)), do: unquote(schema)
-      def __object__(:joins, unquote(schema)), do: unquote(joins)
+      def __object__(:joins, unquote(schema)), do: unquote(Macro.escape(joins))
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       # defmacro query_fields(unquote(module), resolver) do
@@ -144,7 +159,7 @@ defmodule Dilute do
         unquote(
           [
             quote do
-              Macro.expand_once(unquote(block), unquote(__CALLER__))
+              unquote(expanded_block)
             end
             | for {field, type} <- fields do
                 case type do
@@ -166,24 +181,20 @@ defmodule Dilute do
               end
           ] ++
             if opts[:associations] do
-              for {field, assoc, schema, fields} <- assocs do
+              for {field, assoc} <- assocs do
                 case assoc do
-                  %Ecto.Association.BelongsTo{} ->
+                  {:one, schema, _fields} ->
                     quote do
                       field(unquote(field), unquote(schema)) do
-                        unquote(Dilute.args(fields))
                       end
                     end
 
-                  %Ecto.Association.Has{} ->
+                  {:many, schema, fields} ->
                     quote do
                       field(unquote(field), list_of(unquote(schema))) do
                         unquote(Dilute.args(fields))
                       end
                     end
-
-                  _ ->
-                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
                 end
               end
             else
@@ -194,80 +205,99 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_input_object(module, opts \\ [], do: block) do
-    module = Macro.expand(module, __CALLER__)
-    ecto_check(module)
+  # defmacro ecto_input_object(module, opts \\ [], do: block) do
+  #   module = Macro.expand(module, __CALLER__)
+  #   ecto_check(module)
 
-    opts =
-      Keyword.merge(@default_ecto_input_object, opts)
-      |> update_in([:exclude], &List.wrap/1)
-      |> update_in([:exclude], fn list -> list ++ overrides(block) end)
+  #   opts =
+  #     Keyword.merge(@default_ecto_input_object, opts)
+  #     |> update_in([:exclude], &List.wrap/1)
+  #     |> update_in([:exclude], fn list -> list ++ overrides(block) end)
 
-    {schema, _schema_plural} =
-      if opts[:prefix] do
-        schema_tuple(module, @input_prefix)
-      else
-        schema_tuple(module)
-      end
+  #   {schema, _schema_plural} =
+  #     if opts[:prefix] do
+  #       schema_tuple(module, @input_prefix)
+  #     else
+  #       schema_tuple(module)
+  #     end
 
-    fields = fields(module, opts[:exclude], @input_prefix)
+  #   fields = fields(module, opts[:exclude], @input_prefix)
 
-    assocs = associations(module, opts[:exclude])
+  #   assocs = associations(module, opts[:exclude])
+
+  #   expanded_block = Macro.expand_once(block, __CALLER__)
+
+  #   quote do
+  #     # def __input_object__(:module, unquote(schema)), do: unquote(module)
+  #     # def __input_object__(:schema, unquote(module)), do: unquote(schema)
+
+  #     input_object unquote(schema) do
+  #       unquote(
+  #         [
+  #           quote do
+  #             unquote(expanded_block)
+  #           end
+  #           | for {field, type} <- fields do
+  #               case type do
+  #                 {:one, schema} ->
+  #                   quote do
+  #                     field(unquote(field), unquote(schema))
+  #                   end
+
+  #                 {:many, schema} ->
+  #                   quote do
+  #                     field(unquote(field), list_of(unquote(schema)))
+  #                   end
+
+  #                 type ->
+  #                   quote do
+  #                     field(unquote(field), unquote(type))
+  #                   end
+  #               end
+  #             end
+  #         ] ++
+  #           if opts[:associations] do
+  #             for {field, assoc, schema, fields} <- assocs do
+  #               case assoc do
+  #                 %Ecto.Association.BelongsTo{} ->
+  #                   quote do
+  #                     field(unquote(field), unquote(schema)) do
+  #                       unquote(Dilute.args(fields))
+  #                     end
+  #                   end
+
+  #                 %Ecto.Association.Has{} ->
+  #                   quote do
+  #                     field(unquote(field), list_of(unquote(schema))) do
+  #                       unquote(Dilute.args(fields))
+  #                     end
+  #                   end
+
+  #                 _ ->
+  #                   raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
+  #               end
+  #             end
+  #           else
+  #             []
+  #           end
+  #       )
+  #     end
+  #   end
+  # end
+
+  defmacro mapper(module, do: block) do
+    module
+    |> Dilute.Mapper.map()
+    |> case do
+      {:custom, _mod} -> :ok
+      type -> raise("#{module} already maps to #{type}")
+    end
+
+    expanded_block = Macro.expand_once(block, __CALLER__)
 
     quote do
-      # def __input_object__(:module, unquote(schema)), do: unquote(module)
-      # def __input_object__(:schema, unquote(module)), do: unquote(schema)
-
-      input_object unquote(schema) do
-        unquote(
-          [
-            quote do
-              Macro.expand_once(unquote(block), unquote(__CALLER__))
-            end
-            | for {field, type} <- fields do
-                case type do
-                  {:one, schema} ->
-                    quote do
-                      field(unquote(field), unquote(schema))
-                    end
-
-                  {:many, schema} ->
-                    quote do
-                      field(unquote(field), list_of(unquote(schema)))
-                    end
-
-                  type ->
-                    quote do
-                      field(unquote(field), unquote(type))
-                    end
-                end
-              end
-          ] ++
-            if opts[:associations] do
-              for {field, assoc, schema, fields} <- assocs do
-                case assoc do
-                  %Ecto.Association.BelongsTo{} ->
-                    quote do
-                      field(unquote(field), unquote(schema)) do
-                        unquote(Dilute.args(fields))
-                      end
-                    end
-
-                  %Ecto.Association.Has{} ->
-                    quote do
-                      field(unquote(field), list_of(unquote(schema))) do
-                        unquote(Dilute.args(fields))
-                      end
-                    end
-
-                  _ ->
-                    raise "Dilute is currently only implemented for Ecto's BelongsTo and Has associations"
-                end
-              end
-            else
-              []
-            end
-        )
+      def __map__(unquote(module)) do
+        unquote(expanded_block)
       end
     end
   end
@@ -337,17 +367,24 @@ defmodule Dilute do
   end
 
   # returns all associations for a given module
-  defp associations(module, exclude) do
+  defp associations(module, exclude, caller) do
     module.__schema__(:associations)
     |> exclude(exclude)
     |> Enum.map(fn field ->
-      assoc = %{related: mod} = module.__schema__(:association, field)
+      %{related: related, cardinality: cardinality} = module.__schema__(:association, field)
 
-      {schema, _schema_plural} = schema_tuple(mod)
+      {schema, _schema_plural} = schema_tuple(related)
 
-      fields = fields(mod, [])
+      fields =
+        if cardinality == :many do
+          # fields(related, caller.__object__(:exclude, schema))
+          []
+        else
+          []
+        end
 
-      {field, assoc, schema, fields}
+      {field, {cardinality, schema, fields}}
+      # {field, assoc, schema, fields}
     end)
   end
 
