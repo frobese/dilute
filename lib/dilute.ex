@@ -72,20 +72,23 @@ defmodule Dilute do
   @default_ecto_object [associations: true, exclude: []]
   @default_ecto_input_object [associations: true, exclude: [], prefix: true]
   @input_prefix "input_"
-  defmacro ecto_object(module, opts \\ [], do: block) do
+  defmacro ecto_object(module, opts \\ [], [do: block] \\ [do: []]) do
     module = Macro.expand(module, __CALLER__)
     ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_object, opts)
       |> update_in([:exclude], &List.wrap/1)
-      |> update_in([:exclude], fn list -> list ++ overrides(block) end)
+
+    overrides = overrides(block)
+    expanded_exlcudes = opts[:exclude] ++ overrides
+
+    warnings(__CALLER__, module, opts[:exclude])
 
     {schema, schema_plural} = schema_tuple(module)
 
-    fields = fields(module, opts[:exclude])
-
-    assocs = associations(module, opts[:exclude])
+    fields = fields(module, expanded_exlcudes, @input_prefix)
+    assocs = associations(module, expanded_exlcudes)
 
     joins =
       assocs
@@ -194,14 +197,18 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_input_object(module, opts \\ [], do: block) do
+  defmacro ecto_input_object(module, opts \\ [], [do: block] \\ [do: []]) do
     module = Macro.expand(module, __CALLER__)
     ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_input_object, opts)
       |> update_in([:exclude], &List.wrap/1)
-      |> update_in([:exclude], fn list -> list ++ overrides(block) end)
+
+    overrides = overrides(block)
+    expanded_exlcudes = opts[:exclude] ++ overrides
+
+    warnings(__CALLER__, module, opts[:exclude])
 
     {schema, _schema_plural} =
       if opts[:prefix] do
@@ -210,9 +217,8 @@ defmodule Dilute do
         schema_tuple(module)
       end
 
-    fields = fields(module, opts[:exclude], @input_prefix)
-
-    assocs = associations(module, opts[:exclude])
+    fields = fields(module, expanded_exlcudes, @input_prefix)
+    assocs = associations(module, expanded_exlcudes)
 
     quote do
       # def __input_object__(:module, unquote(schema)), do: unquote(module)
@@ -272,6 +278,20 @@ defmodule Dilute do
     end
   end
 
+  defp warnings(%{file: file, line: line}, module, excludes) do
+    identifiers = module.__schema__(:fields) ++ module.__schema__(:associations)
+
+    for exclude <- excludes do
+      if exclude not in identifiers do
+        :elixir_errors.warn(
+          line,
+          file,
+          "Excluding #{inspect(exclude)} wich is not present as a field in #{inspect(module)}"
+        )
+      end
+    end
+  end
+
   @spec schema_tuple(module(), String.t()) :: {singular :: atom(), plural :: atom()}
   defp schema_tuple(module, prefix \\ "") when is_atom(module) do
     module
@@ -318,6 +338,8 @@ defmodule Dilute do
 
   # returns the field definition for a given module
   defp fields(module, exclude, prefix \\ "") do
+    import Dilute.Mapper
+
     module.__schema__(:fields)
     |> exclude(exclude)
     |> Enum.map(fn field ->
@@ -328,8 +350,11 @@ defmodule Dilute do
 
             {cardinality, schema}
 
+          {:array, type} ->
+            {:many, map(type)}
+
           type ->
-            Dilute.Mapper.map(type)
+            map(type)
         end
 
       {field, type}

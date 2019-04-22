@@ -1,7 +1,7 @@
 defmodule DiluteTest.Environment.Absinthe.Types do
   use Absinthe.Schema.Notation
   import Dilute
-  alias DiluteTest.Environment.Ecto.{Post, Comment, Create_Comment}
+  alias DiluteTest.Environment.Ecto.{Post, Comment, Create_Comment, Message}
 
   ecto_object Post, exclude: :id do
     field(:rating, :float)
@@ -11,12 +11,13 @@ defmodule DiluteTest.Environment.Absinthe.Types do
     )
   end
 
-  ecto_object Comment, exclude: :post do
+  ecto_object Comment, exclude: [:post, :foo] do
+    field(:last_viewed, :datetime)
   end
 
-  ecto_input_object Comment, exclude: :post do
-  end
+  ecto_object(Message)
 
-  ecto_input_object Create_Comment, prefix: false do
-  end
+  ecto_input_object(Comment, exclude: :post)
+
+  ecto_input_object(Create_Comment, prefix: false)
 end
