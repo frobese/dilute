@@ -72,7 +72,26 @@ defmodule Dilute do
   @default_ecto_object [associations: true, exclude: []]
   @default_ecto_input_object [associations: true, exclude: [], prefix: true]
   @input_prefix "input_"
-  defmacro ecto_object(module, opts \\ [], [do: block] \\ [do: []]) do
+
+  defmacro ecto_object(module) do
+    quote do
+      Dilute.ecto_object(unquote(module), [], do: [])
+    end
+  end
+
+  defmacro ecto_object(module, do: block) do
+    quote do
+      Dilute.ecto_object(unquote(module), [], do: unquote(block))
+    end
+  end
+
+  defmacro ecto_object(module, opts) do
+    quote do
+      Dilute.ecto_object(unquote(module), unquote(opts), do: [])
+    end
+  end
+
+  defmacro ecto_object(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
     ecto_check(module)
 
@@ -87,7 +106,7 @@ defmodule Dilute do
 
     {schema, schema_plural} = schema_tuple(module)
 
-    fields = fields(module, expanded_exlcudes, @input_prefix)
+    fields = fields(module, expanded_exlcudes, "")
     assocs = associations(module, expanded_exlcudes)
 
     joins =
@@ -197,7 +216,25 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_input_object(module, opts \\ [], [do: block] \\ [do: []]) do
+  defmacro ecto_input_object(module) do
+    quote do
+      Dilute.ecto_input_object(unquote(module), [], do: [])
+    end
+  end
+
+  defmacro ecto_input_object(module, do: block) do
+    quote do
+      Dilute.ecto_input_object(unquote(module), [], do: unquote(block))
+    end
+  end
+
+  defmacro ecto_input_object(module, opts) do
+    quote do
+      Dilute.ecto_input_object(unquote(module), unquote(opts), do: [])
+    end
+  end
+
+  defmacro ecto_input_object(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
     ecto_check(module)
 
