@@ -320,10 +320,14 @@ defmodule Dilute do
 
     for exclude <- excludes do
       if exclude not in identifiers do
-        :elixir_errors.warn(
-          line,
-          file,
-          "Excluding #{inspect(exclude)} wich is not present as a field in #{inspect(module)}"
+        IO.warn(
+          [
+            "Excluding ",
+            inspect(exclude),
+            " wich is not present as a field in ",
+            inspect(module)
+          ],
+          [{__MODULE__, :__MODULE__, 1, [file: to_charlist(file), line: line]}]
         )
       end
     end

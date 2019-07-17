@@ -1,7 +1,7 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
-  @version "0.2.3"
+  @version "0.2.4"
   def project do
     [
       app: :dilute,
@@ -19,7 +19,7 @@ defmodule Dilute.MixProject do
   end
 
   def elixirc_paths(:test), do: ["test/support", "test/environment" | elixirc_paths(nil)]
-  def elixirc_paths(:dev), do: ["test/support", "test/environment" | elixirc_paths(nil)]
+  # def elixirc_paths(:dev), do: ["test/support", "test/environment" | elixirc_paths(nil)]
 
   def elixirc_paths(_), do: ["lib"]
 
@@ -35,7 +35,7 @@ defmodule Dilute.MixProject do
     [
       {:ecto, "~> 2.0"},
       {:absinthe, "~> 1.4"},
-      {:ex_doc, "~> 0.19", only: :dev},
+      {:ex_doc, "~> 0.20", only: :dev},
       {:mariaex, ">= 0.0.0", only: :test}
     ]
   end
