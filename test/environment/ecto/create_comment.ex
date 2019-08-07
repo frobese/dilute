@@ -1,4 +1,4 @@
-defmodule DiluteTest.Environment.Ecto.Create_Comment do
+defmodule DiluteTest.Environment.Ecto.CreateComment do
   use Ecto.Schema
 
   embedded_schema do

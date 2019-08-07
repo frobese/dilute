@@ -91,9 +91,16 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_object(module, opts, do: block) do
+  defmacro ecto_object(module, opts, block) do
+    if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
+      quote do
+        Dilute.__ecto_object__(unquote(module), unquote(opts), unquote(block))
+      end
+    end
+  end
+
+  defmacro __ecto_object__(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
-    ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_object, opts)
@@ -234,9 +241,16 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_input_object(module, opts, do: block) do
+  defmacro ecto_input_object(module, opts, block) do
+    if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
+      quote do
+        Dilute.__ecto_input_object__(unquote(module), unquote(opts), unquote(block))
+      end
+    end
+  end
+
+  defmacro __ecto_input_object__(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
-    ecto_check(module)
 
     opts =
       Keyword.merge(@default_ecto_input_object, opts)
@@ -315,20 +329,17 @@ defmodule Dilute do
     end
   end
 
-  defp warnings(%{file: file, line: line}, module, excludes) do
+  defp warnings(env, module, excludes) do
     identifiers = module.__schema__(:fields) ++ module.__schema__(:associations)
 
     for exclude <- excludes do
       if exclude not in identifiers do
-        IO.warn(
-          [
-            "Excluding ",
-            inspect(exclude),
-            " wich is not present as a field in ",
-            inspect(module)
-          ],
-          [{__MODULE__, :__MODULE__, 1, [file: to_charlist(file), line: line]}]
-        )
+        warn(env, [
+          "Excluding ",
+          inspect(exclude),
+          " wich is not present as a field in ",
+          inspect(module)
+        ])
       end
     end
   end
@@ -345,17 +356,35 @@ defmodule Dilute do
     |> List.to_tuple()
   end
 
-  defp ecto_check(module) do
-    cond do
-      not Code.ensure_compiled?(module) ->
-        raise "referenced module #{inspect(module)} could not be complied/loaded"
+  defp ecto_schema?(env, module) do
+    with {:module, module} <- Code.ensure_compiled(module),
+         true <- function_exported?(module, :__schema__, 2) do
+      true
+    else
+      false ->
+        warn(env, "#{inspect(module)} no Ecto schema available")
 
-      not function_exported?(module, :__schema__, 2) ->
-        raise "referenced module #{inspect(module)} is not an Ecto schema"
+        false
 
-      true ->
-        :ok
+      {:error, error} ->
+        warn(
+          env,
+          [
+            inspect(module),
+            " could not be compiled/loaded: ",
+            inspect(error)
+          ]
+        )
+
+        false
     end
+  end
+
+  defp warn(%{file: file, line: line}, msg) do
+    IO.warn(
+      msg,
+      [{__MODULE__, :__MODULE__, 1, [file: to_charlist(file), line: line]}]
+    )
   end
 
   defp exclude(lst, []) do

@@ -45,5 +45,12 @@ defmodule DiluteTest do
       assert %{fields: %{lines: %{type: %Absinthe.Type.List{of_type: :string}}}} =
                Types.__absinthe_type__(:message)
     end
+
+    test "leave modules undefined" do
+      types = Types.__absinthe_types__()
+      refute Map.has_key?(types, :some_module_not_compilable_module)
+      refute Map.has_key?(types, :no_ecto_schema)
+      refute Map.has_key?(types, :some_module_not_compilable_module)
+    end
   end
 end
