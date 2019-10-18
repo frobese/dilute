@@ -46,7 +46,7 @@ defmodule Dilute.Query do
 
     {query, bindings, nested_assocs} =
       query
-      |> join(:inner, [ref: curr_index], next in assoc(ref, ^h.ident))
+      |> join(:inner, [{bind, curr_index}], next in assoc(bind, ^h.ident))
       |> generate_query(h, bindings, [], next_bind)
 
     assocs = assocs ++ [{h.ident, {next_index, nested_assocs}}]
@@ -62,7 +62,7 @@ defmodule Dilute.Query do
       ) do
     # process where conditions
     query
-    |> where([ref: curr_index], field(ref, ^key) == ^value)
+    |> where([{bind, curr_index}], field(bind, ^key) == ^value)
     |> generate_query(%Resolution{res | where: rest}, bindings, assocs, current_bind)
   end
 
@@ -82,5 +82,9 @@ defmodule Dilute.Query do
   def generate_query(query, _resolution, bindings, assocs, _current_bind) do
     # final
     {query, bindings, assocs}
+  end
+
+  def index_to_name(index) do
+    String.to_atom("b#{index}")
   end
 end
