@@ -92,10 +92,10 @@ defmodule Dilute do
   end
 
   defmacro ecto_object(module, opts, block) do
-    if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
-      quote do
-        Dilute.__ecto_object__(unquote(module), unquote(opts), unquote(block))
-      end
+    ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__))
+
+    quote do
+      Dilute.__ecto_object__(unquote(module), unquote(opts), unquote(block))
     end
   end
 
@@ -242,10 +242,10 @@ defmodule Dilute do
   end
 
   defmacro ecto_input_object(module, opts, block) do
-    if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
-      quote do
-        Dilute.__ecto_input_object__(unquote(module), unquote(opts), unquote(block))
-      end
+    ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__))
+
+    quote do
+      Dilute.__ecto_input_object__(unquote(module), unquote(opts), unquote(block))
     end
   end
 
@@ -330,18 +330,29 @@ defmodule Dilute do
   end
 
   defp warnings(env, module, excludes) do
+    stacktrace = Macro.Env.stacktrace(env)
     identifiers = module.__schema__(:fields) ++ module.__schema__(:associations)
 
     for exclude <- excludes do
       if exclude not in identifiers do
-        warn(env, [
-          "Excluding ",
-          inspect(exclude),
-          " wich is not present as a field in ",
-          inspect(module)
-        ])
+        IO.warn(
+          [
+            "Excluding ",
+            inspect(exclude),
+            " wich is not present as a field in ",
+            inspect(module)
+          ],
+          stacktrace
+        )
       end
     end
+  rescue
+    e in UndefinedFunctionError ->
+      if e.function == :__schema__ do
+        []
+      else
+        reraise e, __STACKTRACE__
+      end
   end
 
   @spec schema_tuple(module(), String.t()) :: {singular :: atom(), plural :: atom()}
@@ -357,34 +368,22 @@ defmodule Dilute do
   end
 
   defp ecto_schema?(env, module) do
+    stacktrace = Macro.Env.stacktrace(env)
+
     with {:module, module} <- Code.ensure_compiled(module),
          true <- function_exported?(module, :__schema__, 2) do
       true
     else
       false ->
-        warn(env, "#{inspect(module)} no Ecto schema available")
+        IO.warn("#{inspect(module)} no Ecto schema available", stacktrace)
 
         false
 
       {:error, error} ->
-        warn(
-          env,
-          [
-            inspect(module),
-            " could not be compiled/loaded: ",
-            inspect(error)
-          ]
-        )
+        IO.warn([inspect(module), " could not be compiled/loaded: ", inspect(error)], stacktrace)
 
         false
     end
-  end
-
-  defp warn(%{file: file, line: line}, msg) do
-    IO.warn(
-      msg,
-      [{__MODULE__, :__MODULE__, 1, [file: to_charlist(file), line: line]}]
-    )
   end
 
   defp exclude(lst, []) do
@@ -429,6 +428,13 @@ defmodule Dilute do
 
       {field, type}
     end)
+  rescue
+    e in UndefinedFunctionError ->
+      if e.function == :__schema__ do
+        []
+      else
+        reraise e, __STACKTRACE__
+      end
   end
 
   # returns all associations for a given module
@@ -444,6 +450,13 @@ defmodule Dilute do
 
       {field, assoc, schema, fields}
     end)
+  rescue
+    e in UndefinedFunctionError ->
+      if e.function == :__schema__ do
+        []
+      else
+        reraise e, __STACKTRACE__
+      end
   end
 
   defp overrides([]) do

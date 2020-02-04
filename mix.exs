@@ -1,7 +1,7 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.3.1"
   def project do
     [
       app: :dilute,
@@ -47,7 +47,7 @@ defmodule Dilute.MixProject do
   defp docs do
     [
       main: "Dilute",
-      source_ref: "v#{@version}",
+      # source_ref: "v#{@version}",
       canonical: "http://hexdocs.pm/dilute",
       # logo: "guides/images/e.png",
       source_url: "https://github.com/frobese/dilute"
