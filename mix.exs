@@ -36,6 +36,7 @@ defmodule Dilute.MixProject do
       {:ecto, "~> 3.0"},
       {:ecto_sql, "~> 3.0"},
       {:absinthe, "~> 1.4"},
+      {:credo, "~> 1.0", only: :dev},
       {:ex_doc, "~> 0.20", only: :dev},
       {:myxql, ">= 0.0.0", only: :test}
     ]
