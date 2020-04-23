@@ -11,9 +11,9 @@ defmodule Dilute do
         import Dilute
         alias MyApp.Blog.{Post, Comment}
 
-        ecto_object(Post)
+        dilute_object(Post)
 
-        ecto_object(Comment)
+        dilute_object(Comment)
       end
 
   ## Resolution
@@ -58,52 +58,52 @@ defmodule Dilute do
   Settings the `:associations` option to `false` will omit the associations in the definition.
   Fields can be excluded using the `:exclude` option.
 
-      ecto_object Post, exclude: :id do
+      dilute_object Post, exclude: :id do
       end
 
   Additionally the do block will override any field definitions.
 
-      ecto_object Post do
+      dilute_object Post do
         field(:rating, :float)
       end
 
   Ecto allows for Custom Type definitions which have to be overwritten.
   """
-  @default_ecto_object [associations: true, exclude: []]
-  @default_ecto_input_object [associations: true, exclude: [], prefix: true]
+  @default_dilute_object [associations: true, exclude: []]
+  @default_dilute_input_object [associations: true, exclude: [], prefix: true]
   @input_prefix "input_"
 
-  defmacro ecto_object(module) do
+  defmacro dilute_object(module) do
     quote do
-      Dilute.ecto_object(unquote(module), [], do: [])
+      Dilute.dilute_object(unquote(module), [], do: [])
     end
   end
 
-  defmacro ecto_object(module, do: block) do
+  defmacro dilute_object(module, do: block) do
     quote do
-      Dilute.ecto_object(unquote(module), [], do: unquote(block))
+      Dilute.dilute_object(unquote(module), [], do: unquote(block))
     end
   end
 
-  defmacro ecto_object(module, opts) do
+  defmacro dilute_object(module, opts) do
     quote do
-      Dilute.ecto_object(unquote(module), unquote(opts), do: [])
+      Dilute.dilute_object(unquote(module), unquote(opts), do: [])
     end
   end
 
-  defmacro ecto_object(module, opts, block) do
+  defmacro dilute_object(module, opts, block) do
     if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
       quote do
-        Dilute.__ecto_object__(unquote(module), unquote(opts), unquote(block))
+        Dilute.__dilute_object__(unquote(module), unquote(opts), unquote(block))
       end
     end
   end
 
-  defmacro __ecto_object__(module, opts, do: block) do
+  defmacro __dilute_object__(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
 
     opts =
-      Keyword.merge(@default_ecto_object, opts)
+      Keyword.merge(@default_dilute_object, opts)
       |> update_in([:exclude], &List.wrap/1)
 
     overrides = overrides(block)
@@ -130,6 +130,7 @@ defmodule Dilute do
       def __object__(:module, unquote(schema)), do: unquote(module)
       def __object__(:schema, unquote(module)), do: unquote(schema)
       def __object__(:joins, unquote(schema)), do: unquote(joins)
+
       # def __object__(:exclude, unquote(schema)), do: unquote(opts[:exclude])
 
       # defmacro query_fields(unquote(module), resolver) do
@@ -223,37 +224,37 @@ defmodule Dilute do
     end
   end
 
-  defmacro ecto_input_object(module) do
+  defmacro dilute_input_object(module) do
     quote do
-      Dilute.ecto_input_object(unquote(module), [], do: [])
+      Dilute.dilute_input_object(unquote(module), [], do: [])
     end
   end
 
-  defmacro ecto_input_object(module, do: block) do
+  defmacro dilute_input_object(module, do: block) do
     quote do
-      Dilute.ecto_input_object(unquote(module), [], do: unquote(block))
+      Dilute.dilute_input_object(unquote(module), [], do: unquote(block))
     end
   end
 
-  defmacro ecto_input_object(module, opts) do
+  defmacro dilute_input_object(module, opts) do
     quote do
-      Dilute.ecto_input_object(unquote(module), unquote(opts), do: [])
+      Dilute.dilute_input_object(unquote(module), unquote(opts), do: [])
     end
   end
 
-  defmacro ecto_input_object(module, opts, block) do
+  defmacro dilute_input_object(module, opts, block) do
     if ecto_schema?(__CALLER__, Macro.expand(module, __CALLER__)) do
       quote do
-        Dilute.__ecto_input_object__(unquote(module), unquote(opts), unquote(block))
+        Dilute.__dilute_input_object__(unquote(module), unquote(opts), unquote(block))
       end
     end
   end
 
-  defmacro __ecto_input_object__(module, opts, do: block) do
+  defmacro __dilute_input_object__(module, opts, do: block) do
     module = Macro.expand(module, __CALLER__)
 
     opts =
-      Keyword.merge(@default_ecto_input_object, opts)
+      Keyword.merge(@default_dilute_input_object, opts)
       |> update_in([:exclude], &List.wrap/1)
 
     overrides = overrides(block)

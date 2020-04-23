@@ -9,7 +9,7 @@ defmodule DiluteTest.Environment.Absinthe.Types do
     end
   end
 
-  ecto_object Post, exclude: :id do
+  dilute_object Post, exclude: :id do
     field(:rating, :float)
 
     field(:retrieved, :date,
@@ -17,19 +17,19 @@ defmodule DiluteTest.Environment.Absinthe.Types do
     )
   end
 
-  ecto_object Comment, exclude: [:post, :foo] do
+  dilute_object Comment, exclude: [:post, :foo] do
     field(:last_viewed, :datetime)
   end
 
-  ecto_object(Message)
+  dilute_object(Message)
 
-  ecto_object(SomeModuleNotCompilableModule)
+  dilute_object(SomeModuleNotCompilableModule)
 
-  ecto_object(DiluteTest.Environment.NoEctoSchema)
+  dilute_object(DiluteTest.Environment.NoEctoSchema)
 
-  ecto_input_object(Comment, exclude: :post)
+  dilute_input_object(Comment, exclude: :post)
 
-  ecto_input_object(CreateComment, prefix: false)
+  dilute_input_object(CreateComment, prefix: false)
 
-  ecto_input_object(SomeModuleNotCompilableModule)
+  dilute_input_object(SomeModuleNotCompilableModule)
 end
