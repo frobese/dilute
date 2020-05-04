@@ -25,7 +25,7 @@ defmodule DiluteTest.Environment.Absinthe.Types do
 
   dilute_object(SomeModuleNotCompilableModule)
 
-  dilute_object(DiluteTest.Environment.NoEctoSchema)
+  # dilute_object(DiluteTest.Environment.NoEctoSchema)
 
   dilute_input_object(Comment, exclude: :post)
 

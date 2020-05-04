@@ -1,8 +1,22 @@
 defmodule DiluteTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   alias DiluteTest.Environment.Absinthe.Types
+  alias DiluteTest.Environment.Ecto.TestSchema
 
   doctest Dilute
+
+  @mods [ComptimeTypes]
+
+  setup context do
+    on_exit(fn ->
+      for mod <- @mods do
+        :code.purge(mod)
+        :code.delete(mod)
+      end
+    end)
+
+    context
+  end
 
   describe "Object definition testing" do
     test "completeness" do
@@ -52,5 +66,18 @@ defmodule DiluteTest do
       refute Map.has_key?(types, :no_ecto_schema)
       refute Map.has_key?(types, :some_module_not_compilable_module)
     end
+  end
+
+  test "schema" do
+    Code.compile_quoted(
+      quote do
+        defmodule ComptimeTypes do
+          use Absinthe.Schema.Notation
+          import Dilute
+
+          dilute_object(TestSchema)
+        end
+      end
+    )
   end
 end
