@@ -18,11 +18,11 @@ defmodule DiluteTest.Environment.Ecto.TestSchema do
     field(:some_decimal, :decimal)
     field(:some_date, :date)
     field(:some_time, :time)
-    field(:some_time_usec, :time_usec)
+    # field(:some_time_usec, :time_usec)
     field(:some_naive_datetime, :naive_datetime)
-    field(:some_naive_datetime_usec, :naive_datetime_usec)
+    # field(:some_naive_datetime_usec, :naive_datetime_usec)
     field(:some_utc_datetime, :utc_datetime)
-    field(:some_utc_datetime_usec, :utc_datetime_usec)
+    # field(:some_utc_datetime_usec, :utc_datetime_usec)
     field(:custom_type, UnixTime)
   end
 end

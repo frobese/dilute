@@ -1,7 +1,7 @@
 defmodule Dilute.MixProject do
   use Mix.Project
 
-  @version "2.0.0-rc.0"
+  @version "2.0.0-rc.1"
   def project do
     [
       app: :dilute,
@@ -33,11 +33,12 @@ defmodule Dilute.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ecto, "~> 3.0"},
-      {:ecto_sql, "~> 3.0"},
+      {:ecto, ">= 2.0.0", optional: true},
+      # {:ecto_sql, "~> 3.0"},
       {:absinthe, "~> 1.4"},
       {:ex_doc, "~> 0.20", only: :dev},
-      {:myxql, ">= 0.0.0", only: :test}
+      # {:myxql, ">= 0.0.0", only: :test}
+      {:mariaex, "~> 0.8.0", only: [:dev, :test]}
     ]
   end
 

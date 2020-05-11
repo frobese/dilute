@@ -3,7 +3,7 @@ use Mix.Config
 config :dilute, ecto_repos: [DiluteTest.Environment.Ecto.Repo]
 
 config :dilute, DiluteTest.Environment.Ecto.Repo,
-  adapter: Ecto.Adapters.MyXQL,
+  adapter: Ecto.Adapters.MySQL,
   pool_timeout: 9000,
   timeout: 15000,
   server: "localhost",
