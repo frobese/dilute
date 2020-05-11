@@ -24,6 +24,12 @@ defmodule Dilute.Adapter.Ecto do
           {:embed, %Ecto.Embedded{related: related, cardinality: cardinality}} ->
             {field, cardinality, :"$module", related}
 
+          {:map, type} ->
+            {field, :may, :invalid, type}
+
+          :map ->
+            {field, :many, :invalid, :any}
+
           {:array, type} ->
             {field, :many, map_type(type), type}
 

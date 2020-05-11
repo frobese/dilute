@@ -86,6 +86,7 @@ defmodule Dilute.Env do
     |> adapter.fields()
     |> filter_excludes(env)
     |> filter_overwrites(env)
+    |> field_errors(env)
   end
 
   defp filter_excludes(fields, %__MODULE__{} = env) do
@@ -111,5 +112,19 @@ defmodule Dilute.Env do
     Enum.reject(fields, fn {indentifier, _, _, _} ->
       indentifier in locationless_overwrites
     end)
+  end
+
+  defp field_errors(fields, %__MODULE__{} = env) do
+    for field <- fields do
+      case field do
+        {field, _, :invalid, _} ->
+          reraise Dilute.AdapterError,
+                  [message: "The type of #{field} couldn't be mapped by #{env.adapter}"],
+                  Macro.Env.stacktrace(env.schema_env)
+
+        field ->
+          field
+      end
+    end
   end
 end

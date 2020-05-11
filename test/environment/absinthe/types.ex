@@ -17,7 +17,7 @@ defmodule DiluteTest.Environment.Absinthe.Types do
     )
   end
 
-  dilute_object Comment, exclude: [:post, :foo] do
+  dilute_object Comment, exclude: [:post, :foo, :votees] do
     field(:last_viewed, :datetime)
   end
 
@@ -27,7 +27,7 @@ defmodule DiluteTest.Environment.Absinthe.Types do
 
   # dilute_object(DiluteTest.Environment.NoEctoSchema)
 
-  dilute_input_object(Comment, exclude: :post)
+  dilute_input_object(Comment, exclude: [:post, :votees])
 
   dilute_input_object(CreateComment, prefix: false)
 
