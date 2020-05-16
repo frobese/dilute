@@ -6,7 +6,6 @@ defmodule DiluteTest.Environment.Ecto.Comment do
   schema "comments" do
     field(:content, :string)
     field(:votes, :integer)
-    field(:votees, :map)
     field(:last_viewed, UnixTime)
 
     belongs_to(:post, DiluteTest.Environment.Ecto.Post)

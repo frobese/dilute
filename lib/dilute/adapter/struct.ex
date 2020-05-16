@@ -12,7 +12,6 @@ defmodule Dilute.Adapter.Struct do
   @impl Dilute.Adapter
   def fields(module) do
     for {field, type} <- module.types() do
-      Module.module_info(type)
       {card, mapped_type} = map_type(type)
 
       {field, card, mapped_type, type}
@@ -26,6 +25,10 @@ defmodule Dilute.Adapter.Struct do
   end
 
   def map_type(type) do
-    {:one, Dilute.Adapter.Ecto.map_type(type)}
+    if applicable?(type) do
+      {:one, :"$module"}
+    else
+      {:one, Dilute.Adapter.Ecto.map_type(type)}
+    end
   end
 end
