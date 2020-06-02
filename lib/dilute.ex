@@ -250,8 +250,11 @@ defmodule Dilute do
   def resolve_modules(fields, prefix \\ "") do
     Enum.map(fields, fn field ->
       case field do
-        {field, cardinality, :"$module", related} ->
-          {field, cardinality, schema_identifier(related, prefix), related}
+        {field, :one, :"$module", related} ->
+          {field, :one, schema_identifier(related, prefix), related}
+
+        {field, :many, :"$module", [related]} ->
+          {field, :many, schema_identifier(related, prefix), related}
 
         field ->
           field
