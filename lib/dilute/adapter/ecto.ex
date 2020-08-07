@@ -64,9 +64,9 @@ defmodule Dilute.Adapter.Ecto do
     :naive_datetime
   ]
 
-  # def map_type(:binary_id) do
-  #   :string
-  # end
+  def map_type(:binary_id) do
+    :string
+  end
 
   def map_type(:time_usec) do
     :time
