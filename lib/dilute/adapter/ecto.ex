@@ -92,12 +92,12 @@ defmodule Dilute.Adapter.Ecto do
     if ecto_custom_type?(field_type) do
       map_type(field_type.type())
     else
-      raise AdapterError, "No appropriate field definition for #{field_type}"
+      :invalid
     end
   end
 
-  def map_type(field) do
-    raise AdapterError, "Field type expected to be atom got #{inspect(field)}"
+  def map_type(_field) do
+    :invalid
   end
 
   defp ecto_custom_type?(module) do
