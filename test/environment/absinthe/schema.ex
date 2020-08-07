@@ -1,4 +1,7 @@
 defmodule DiluteTest.Environment.Absinthe.Schema do
+  #
+  @moduledoc false
+
   use Absinthe.Schema
   alias DiluteTest.Environment.Absinthe.{Types, Resolver}
   require Types

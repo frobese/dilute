@@ -1,4 +1,6 @@
 defmodule DiluteTest.Environment.Absinthe.Types do
+  @moduledoc false
+
   use Absinthe.Schema.Notation
   import Dilute
   alias DiluteTest.Environment.Ecto.{Post, Comment, CreateComment, Message}

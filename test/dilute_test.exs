@@ -1,4 +1,5 @@
 defmodule DiluteTest do
+  @moduledoc false
   use ExUnit.Case, async: false
   alias DiluteTest.Environment.Absinthe.Types
   alias DiluteTest.Environment.Ecto.TestSchema
