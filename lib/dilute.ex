@@ -126,6 +126,8 @@ defmodule Dilute do
       |> resolve_modules()
 
     quote do
+      def __object__(:module, unquote(env.schema)), do: unquote(module)
+
       object unquote(env.schema) do
         unquote([
           quote do
